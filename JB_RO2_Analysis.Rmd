@@ -5,13 +5,11 @@ editor_options:
   chunk_output_type: console
 ---
 
-Purpose: Create figures and perform data analysis for the Feb/Mar 2022 Manuscript that summarizes the sampling methods and resulting data as well as dives into the effects of the overtopping event
-
 ```{r}
 library(ggplot2)
 library(phyloseq)
 library(Hmisc)
-library(ggpubr) # install?
+#library(ggpubr) # install?
 library(dplyr)
 library(tidyr)
 library(reshape2)
@@ -22,25 +20,25 @@ library(ggvenn)
 library(RColorBrewer)
 library(vegan)
 library(gridExtra)
-library(factoextra) # install?
+#library(factoextra) # install?
 
-pretty_plot <- theme_classic() + theme(
-  #text = element_text(family = "Arial", color = "black"),
-  plot.margin = margin(0.5,0.5,0.5,0.5, "cm"),
-  axis.line.x.bottom = element_line(color = "black", size = 0.5),
-  axis.line.y.left = element_line(color = "black", size = 0.5),
-  panel.border = element_rect(colour="black", fill = NA, size = 0.5),
-  strip.background = element_blank(),
-  strip.text = element_text(size = 12),
-  panel.grid.major = element_blank(),
-  panel.grid.minor = element_blank(),
-  plot.title = element_text(size = 15),
-  axis.title = element_text(size = 12), 
-  axis.text.y = element_text(size = 12, color = "#000000"),
-  axis.text.x = element_text(size = 12, color = "#000000"))
+# pretty_plot <- theme_classic() + theme(
+#   #text = element_text(family = "Arial", color = "black"),
+#   plot.margin = margin(0.5,0.5,0.5,0.5, "cm"),
+#   axis.line.x.bottom = element_line(color = "black", size = 0.5),
+#   axis.line.y.left = element_line(color = "black", size = 0.5),
+#   panel.border = element_rect(colour="black", fill = NA, size = 0.5),
+#   strip.background = element_blank(),
+#   strip.text = element_text(size = 12),
+#   panel.grid.major = element_blank(),
+#   panel.grid.minor = element_blank(),
+#   plot.title = element_text(size = 15),
+#   axis.title = element_text(size = 12), 
+#   axis.text.y = element_text(size = 12, color = "#000000"),
+#   axis.text.x = element_text(size = 12, color = "#000000"))
 ```
 
-
+# chemistry
 ```{r}
 # load chem data
 ro2_chem_all = read.csv("probe_transplant_2024.11.24.csv")
@@ -226,6 +224,14 @@ ggsave(filename = "RO2_phosphate_pumped.png", plot = last_plot(),
 # STEP 1: Import phyloseq object that has the negative control ASVs and singletons filtered out
 
 To begin, let's load in our saved phyloseq object if needed. Let's also rename the samples to something more informative than what they were named for sequencing. We'll rename them using the experimental metadata.
+
+```{r}
+psRO2 <- readRDS(file = paste0(dirPath, "/robjects", "/psRO2_new.rds"))
+
+```
+
+
+# only do this once: (not needed from psRO2 new)
 ```{r}
 # Set path to ESS210_2021_sequencing folder
 #dirPath <- "~/Documents/Stinson_2022_16S_Analysis/"
