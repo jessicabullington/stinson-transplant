@@ -1,0 +1,1253 @@
+---
+title: "RO2 Manuscript Figures "
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+Purpose: Create figures and perform data analysis for the Feb/Mar 2022 Manuscript that summarizes the sampling methods and resulting data as well as dives into the effects of the overtopping event
+
+```{r}
+library(ggplot2)
+library(phyloseq)
+library(Hmisc)
+library(ggpubr) # install?
+library(dplyr)
+library(tidyr)
+library(reshape2)
+library(viridis)
+library(data.table)
+library(stringr)
+library(ggvenn)
+library(RColorBrewer)
+library(vegan)
+library(gridExtra)
+library(factoextra) # install?
+
+pretty_plot <- theme_classic() + theme(
+  #text = element_text(family = "Arial", color = "black"),
+  plot.margin = margin(0.5,0.5,0.5,0.5, "cm"),
+  axis.line.x.bottom = element_line(color = "black", size = 0.5),
+  axis.line.y.left = element_line(color = "black", size = 0.5),
+  panel.border = element_rect(colour="black", fill = NA, size = 0.5),
+  strip.background = element_blank(),
+  strip.text = element_text(size = 12),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  plot.title = element_text(size = 15),
+  axis.title = element_text(size = 12), 
+  axis.text.y = element_text(size = 12, color = "#000000"),
+  axis.text.x = element_text(size = 12, color = "#000000"))
+```
+
+
+```{r}
+# load chem data
+ro2_chem_all = read.csv("probe_transplant_2024.11.24.csv")
+
+ro2_chem = subset(ro2_chem_all, Type == "Pipes")
+
+# salinity
+ggplot(ro2_chem, aes(x = Time, y = Salinity..psu., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_all$Salinity..psu., na.rm = T),
+                                max(ro2_chem_all$Salinity..psu., na.rm = T))) +
+  labs(title = "Pipes", x = "\nTime Point (days)", y = "Salinity (PSU)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_salinity.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# temperature
+ggplot(ro2_chem, aes(x = Time, y = Temp...C., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_all$Temp...C., na.rm = T),
+                                max(ro2_chem_all$Temp...C., na.rm = T))) +
+  labs(title = "Pipes", x = "\nTime Point (days)", y = "Temperature (°C)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_temperature.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# dissolved oxygen
+ggplot(ro2_chem, aes(x = Time, y = DO..mg.L., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  # scale_y_continuous(limits = c(min(ro2_chem_all$DO..mg.L., na.rm = T),
+  #                               max(ro2_chem_all$DO..mg.L., na.rm = T))) +
+  labs(title = "Pipes", x = "\nTime Point (days)", y = "Dissolved Oxygen (mg/L)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_DO_mg.l.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+ggplot(ro2_chem, aes(x = Time, y = DO..µM., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  # scale_y_continuous(limits = c(min(ro2_chem_all$DO..µM., na.rm = T),
+  #                               max(ro2_chem_all$DO..µM., na.rm = T))) + # scale super off
+  labs(title = "Pipes", x = "\nTime Point (days)", y = "Dissolved Oxygen (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_DO_uM.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+
+ro2_chem = subset(ro2_chem_all, Type == "Pumped")
+
+# salinity
+ggplot(ro2_chem, aes(x = Time, y = Salinity..psu., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_all$Salinity..psu., na.rm = T),
+                                max(ro2_chem_all$Salinity..psu., na.rm = T))) +
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Salinity (PSU)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_salinity_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# temperature
+ggplot(ro2_chem, aes(x = Time, y = Temp...C., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_all$Temp...C., na.rm = T),
+                                max(ro2_chem_all$Temp...C., na.rm = T))) +
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Temperature (°C)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_temperature_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# dissolved oxygen
+ggplot(ro2_chem, aes(x = Time, y = DO..mg.L., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+   scale_y_continuous(limits = c(min(ro2_chem_all$DO..mg.L., na.rm = T),
+                                max(ro2_chem_all$DO..mg.L., na.rm = T))) +
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Dissolved Oxygen (mg/L)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_DO_mg.l_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+ggplot(ro2_chem, aes(x = Time, y = DO..µM., fill = Location)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_all$DO..µM., na.rm = T),
+                                max(ro2_chem_all$DO..µM., na.rm = T))) +
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Dissolved Oxygen (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_DO_uM_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+
+
+```
+
+
+# nutrients
+```{r}
+# nuts = read.csv("RO2_Stinson_16S_all_metadata.csv")
+# 
+# temp <- data.frame(t(data.frame(strsplit(nuts$sample, split = "-"))), row.names = NULL)
+# colnames(temp) <- c("Set", "Original_Samp", "Day", "Replicate")
+# 
+# nuts$Set <- temp$Set
+# nuts$Original_Samp <- temp$Original_Samp
+# nuts$Day <- temp$Day
+# nuts$Replicate <- temp$Replicate
+# 
+# # nuts$Set[nuts$Set == "D"] <- "Increased Depth"
+# # nuts$Set[sample_data(psRO2)$Set == "S"] <- "Increased Salinity"
+# # sample_data(psRO2)$Set[sample_data(psRO2)$Set %like% "NC"] <- "Negative Control"
+# nuts$Set[nuts$Set == "PC" & nuts$Original_Samp == "W1D1"] <- "PC W1"
+# nuts$Set[nuts$Set == "PC" & nuts$Original_Samp == "W4D1"] <- "PC W4"
+
+#nuts$Set = ifelse(nuts$Set == "PC" & nuts$Original_Samp == "W1D1", "PC W1", nuts$Set)
+
+# sample_data(psRO2)$Day <- factor(as.numeric(sample_data(psRO2)$Day))
+
+nuts = read.csv("RO2_nutrients.csv")
+
+# nitrite
+ggplot(nuts, aes(x = Time, y = nitrite, group = Location, color = Location)) +
+  geom_point() +
+  geom_path()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Nitrite (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_nitrite_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# nitrate
+ggplot(nuts, aes(x = Time, y = nitrate, group = Location, color = Location)) +
+  geom_point() +
+    geom_path()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Nitrate (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_nitrate_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# ammonia
+ggplot(nuts, aes(x = Time, y = ammonia, group = Location, color = Location)) +
+  geom_point() +
+    geom_path()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Ammonia (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_ammonia_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+# phosphate
+ggplot(nuts, aes(x = Time, y = phosphate, group = Location, color = Location)) +
+  geom_point() +
+    geom_path()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  labs(title = "Pumped", x = "\nTime Point (days)", y = "Phosphate (µM)\n") +
+  theme_bw()
+
+ggsave(filename = "RO2_phosphate_pumped.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+
+
+
+```
+
+
+# STEP 1: Import phyloseq object that has the negative control ASVs and singletons filtered out
+
+To begin, let's load in our saved phyloseq object if needed. Let's also rename the samples to something more informative than what they were named for sequencing. We'll rename them using the experimental metadata.
+```{r}
+# Set path to ESS210_2021_sequencing folder
+#dirPath <- "~/Documents/Stinson_2022_16S_Analysis/"
+dirPath <- "/Users/jessicabullington/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/stinson-transplant"
+
+# Load phyloseq object if necessary
+psSingletonFilt <- readRDS(file = paste0(dirPath, "/robjects", "/ps_SingleFilt_Stinson_all_decontam_notree.rds"))
+
+# ro2_meta = data.frame(sample_data(psSingletonFilt))
+# 
+# # Rename samples
+# sample_metadata <- read.delim(file = paste0(dirPath, "/Stinson_16S_all_metadata.txt"),
+#                          header = TRUE,
+#                          row.names = 1)
+# sample_metadata$Experiment_ID <- rownames(sample_metadata)
+# sample_names(psSingletonFilt) <- sample_metadata$Experiment_ID[match(sample_names(psSingletonFilt), rownames(sample_metadata))]
+# 
+# sample_metadata <- arrange(sample_metadata, by = date)
+# 
+# psSingletonFilt <- merge_phyloseq(psSingletonFilt, sample_data(sample_metadata))
+
+# Print sample names
+sample_names(psSingletonFilt)
+```
+
+```{r}
+# Filter and subset samples
+psRO2 <- subset_samples(psSingletonFilt, sample.type == "RO2") %>%
+  prune_taxa(taxa_sums(.) > 0, .)
+
+temp <- data.frame(t(data.frame(strsplit(sample_names(psRO2), split = "-"))), row.names = NULL)
+colnames(temp) <- c("Set", "Original_Samp", "Day", "Replicate")
+sample_data(psRO2)$Set <- temp$Set
+sample_data(psRO2)$Original_Samp <- temp$Original_Samp
+sample_data(psRO2)$Day <- temp$Day
+sample_data(psRO2)$Replicate <- temp$Replicate
+
+# sample_data(psRO2)$Set[sample_data(psRO2)$Set == "D"] <- "Increased Depth"
+# sample_data(psRO2)$Set[sample_data(psRO2)$Set == "S"] <- "Increased Salinity"
+# sample_data(psRO2)$Set[sample_data(psRO2)$Set %like% "NC"] <- "Negative Control"
+# sample_data(psRO2)$Set[sample_data(psRO2)$Set == "PC" & sample_data(psRO2)$Original_Samp == "W1D1"] <- "W1D1 Unchanged Location"
+# sample_data(psRO2)$Set[sample_data(psRO2)$Set == "PC" & sample_data(psRO2)$Original_Samp == "W4D1"] <- "W4D1 Unchanged Location"
+
+sample_data(psRO2)$Set[sample_data(psRO2)$Set == "PC" & sample_data(psRO2)$Original_Samp == "W1D1"] <- "PC W1"
+sample_data(psRO2)$Set[sample_data(psRO2)$Set == "PC" & sample_data(psRO2)$Original_Samp == "W4D1"] <- "PC W4"
+
+sample_data(psRO2)$Set[sample_data(psRO2)$Set == "NCD4"] <- "NC D4"
+sample_data(psRO2)$Set[sample_data(psRO2)$Set == "NCW4"] <- "NC W4"
+sample_data(psRO2)$Set[sample_data(psRO2)$Set == "NCW1"] <- "NC W1"
+
+
+sample_data(psRO2)$Day <- factor(as.numeric(sample_data(psRO2)$Day))
+
+sample_data(psRO2)
+
+
+```
+# change NA taxa_names to higher level names
+```{r}
+#https://github.com/joey711/phyloseq/issues/990
+
+library(stringr)
+# 
+# 
+ tax <- data.frame(tax_table(psRO2))
+# 
+# tax.clean <- data.frame(row.names = row.names(tax),
+# # Kingdom = str_replace(tax[,1], "D_0__",""), # I don't have these markers
+# # Phylum = str_replace(tax[,2], "D_1__",""),
+# # Class = str_replace(tax[,3], "D_2__",""),
+# # Order = str_replace(tax[,4], "D_3__",""),
+# # Family = str_replace(tax[,5], "D_4__",""),
+# # Genus = str_replace(tax[,6], "D_5__",""),
+# #Species = str_replace(tax[,7], "D_6__",""),
+# stringsAsFactors = FALSE)
+# tax.clean[is.na(tax.clean)] <- ""
+# 
+# for (i in 1:6){ tax.clean[,i] <- as.character(tax.clean[,i])} # changed every 7 to 6 since I don't have species level
+# tax.clean[is.na(tax.clean)] <- "" # this works but don't need to run every time
+# for (i in 1:nrow(tax.clean)){
+#   if (tax.clean[i,2] == ""){
+# kingdom <- paste("Kingdom_", tax.clean[i,1], sep = "") # maybe change to unknown_ taxa rank
+# tax.clean[i, 2:6] <- kingdom
+# } else if (tax.clean[i,3] == ""){
+# phylum <- paste("Phylum_", tax.clean[i,2], sep = "")
+# tax.clean[i, 3:6] <- phylum
+# } else if (tax.clean[i,4] == ""){
+# class <- paste("Class_", tax.clean[i,3], sep = "")
+# tax.clean[i, 4:6] <- class
+# } else if (tax.clean[i,5] == ""){
+# order <- paste("Order_", tax.clean[i,4], sep = "")
+# tax.clean[i, 5:6] <- order
+# } else if (tax.clean[i,6] == ""){
+# family <- paste("Family_", tax.clean[i,5], sep = "")
+# tax.clean[i, 6:6] <- family
+#  } 
+#   # else if (tax.clean[i,7] == ""){
+# # tax.clean$Species[i] <- paste("Genus",tax.clean$Genus[i], sep = "_")
+# # }
+# }
+
+#tax_table(ps) <- as.matrix(tax.clean)
+
+#write.csv(tax.clean, "tax_table_Stinson_2024.01.16.csv")
+
+# UPDATED 2/21/24
+# changed to unknown (note endings are different at each taxa level)
+
+
+tax.clean <- data.frame(row.names = row.names(tax),
+Kingdom = str_replace(tax[,1], "D_0__",""), # I don't have these markers so does nothing but still run it
+Phylum = str_replace(tax[,2], "D_1__",""),
+Class = str_replace(tax[,3], "D_2__",""),
+Order = str_replace(tax[,4], "D_3__",""),
+Family = str_replace(tax[,5], "D_4__",""),
+Genus = str_replace(tax[,6], "D_5__",""),
+#Species = str_replace(tax[,7], "D_6__",""),
+stringsAsFactors = FALSE)
+tax.clean[is.na(tax.clean)] <- ""
+
+for (i in 1:6){ tax.clean[,i] <- as.character(tax.clean[,i])} # changed every 7 to 6 since I don't have species level
+tax.clean[is.na(tax.clean)] <- "" # this works but don't need to run every time
+for (i in 1:nrow(tax.clean)){
+  if (tax.clean[i,2] == ""){
+kingdom <- paste("unclassified ", tax.clean[i,1], sep = "") # maybe change to unknown_ taxa rank
+tax.clean[i, 2:6] <- kingdom
+} else if (tax.clean[i,3] == ""){
+phylum <- paste("unclassified ", tax.clean[i,2], sep = "")
+tax.clean[i, 3:6] <- phylum
+} else if (tax.clean[i,4] == ""){
+class <- paste("unclassified ", tax.clean[i,3], sep = "")
+tax.clean[i, 4:6] <- class
+} else if (tax.clean[i,5] == ""){
+order <- paste("unclassified ", tax.clean[i,4], sep = "")
+tax.clean[i, 5:6] <- order
+} else if (tax.clean[i,6] == ""){
+family <- paste("unclassified ", tax.clean[i,5], sep = "")
+tax.clean[i, 6:6] <- family
+ }
+  # else if (tax.clean[i,7] == ""){
+# tax.clean$Species[i] <- paste("Genus",tax.clean$Genus[i], sep = "_")
+# }
+}
+
+
+tax_table(psRO2) <- as.matrix(tax.clean)
+
+write.csv(tax.clean, "tax_table_2024.11.25.csv")
+
+```
+
+# remove mitochondria and chloroplast and eukaryotes and totally unclassified ASVs
+```{r}
+mito <- psRO2 %>%
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Family == "Mitochondria") %>% # needs to be capitalized
+  psmelt()
+
+unique(mito$OTU)
+n_distinct(mito$OTU) #129 ASVs
+
+chloro <- psRO2 %>% # not class level but yes order level
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Order == "Chloroplast") %>%
+  psmelt()
+
+unique(chloro$OTU)
+n_distinct(chloro$OTU) #35 ASVs
+
+euks <- psRO2 %>% # none
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Kingdom == "Eukaryota") %>%
+  psmelt() # none
+
+unks <- psRO2 %>% # how many?
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Kingdom == "") %>% # change to NA or whatever placeholder
+  psmelt()
+
+unique(unks$OTU)
+n_distinct(unks$OTU) # 2
+
+# remove mitochondria and chloroplast
+
+ps_new <- psRO2 %>%
+  subset_taxa(Family != "Mitochondria") %>% # also removes NAs if not already changed (be careful to change to unclassified)
+  subset_taxa(Order != "Chloroplast") %>%
+  subset_taxa(Kingdom != "") 
+
+ntaxa(psRO2) # 16339
+ntaxa(ps_new) # 16173 (removed 166)
+
+# a lot of ASVs only have one read in one sample...
+
+# save
+saveRDS(ps_new, file = paste0(dirPath, "/robjects", "/psRO2_new.rds"))
+
+# meta
+ro2_meta = data.frame(sample_data(ps_new))
+
+
+```
+
+# reads
+```{r}
+reads = data.frame(reads_raw = sample_sums(psRO2))
+reads$reads_trim = sample_sums(ps_new)
+reads$diff = reads$reads_raw - reads$reads_trim
+
+# combine reads_trim with meta
+ro2_meta$reads_trim = reads$reads_trim # manually check that this paired correctly
+ro2_meta$Set = as.factor(as.character(ro2_meta$Set))
+ro2_meta$Set <- factor(ro2_meta$Set, levels = c("NC", "NC W1", "NC D4", "NC W4", "PC W1", "PC W4", "D", "S"))
+
+ggplot(ro2_meta, aes(x = Set, y = reads_trim)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  labs(title = "", x = "\nSample Type", y = "Final Read Count\n") +
+  theme_bw()
+
+ggplot(ro2_meta, aes(x = Set, y = reads_trim)) +
+  geom_boxplot() +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  labs(title = "", x = "\nSample Type", y = "Final Read Count\n") +
+  theme_bw()
+
+ggsave(filename = "reads_trim.png", plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+
+
+
+```
+
+
+# ordination
+```{r}
+sample_data(ps_new)$Day <- as.factor(as.character(sample_data(ps_new)$Day))
+sample_data(ps_new)$Set <- as.factor(as.character(sample_data(ps_new)$Set))
+sample_data(ps_new)$Set <- factor(sample_data(ps_new)$Set, levels = c("NC", "NC W1", "NC D4", "NC W4", "PC W1", "PC W4", "D", "S"))
+
+# ordination with asinh transform on raw reads and PCoA
+pstrans = transform_sample_counts(ps_new, function(x) asinh(x)) 
+ps_ord = ordinate(pstrans, method = "PCoA", distance = "bray")
+plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 5) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_asinh_pcoa_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
+
+
+# # ordination with proportion transform on raw reads and PCoA
+# pstrans = transform_sample_counts(ps_new, function(x) x/sum(x)) # looks bad even with asinh
+# ps_ord = ordinate(pstrans, method = "PCoA", distance = "bray")
+# plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+# 
+# # plot ordination
+# plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+#   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+#   theme_bw()+
+#   theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+#   theme(panel.border = element_rect(colour = "black", size = 1))+
+#   geom_point(alpha = 0.7, size = 5) +
+#   #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+#   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+#   labs(col = "", shape = "")
+# 
+# # ordination with proportion transform on raw reads and NMDS
+# pstrans = transform_sample_counts(ps_new, function(x) x/sum(x)) # looks bad even with asinh
+# ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray")
+# #plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+# 
+# # plot ordination
+# plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+#   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+#   theme_bw()+
+#   theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+#   theme(panel.border = element_rect(colour = "black", size = 1))+
+#   geom_point(alpha = 0.7, size = 5) +
+#   #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+#   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+#   labs(col = "", shape = "")
+# 
+# # ordination with proportion transform on raw reads and NMDS
+# pstrans = transform_sample_counts(ps_new, function(x) asinh(x/sum(x))) 
+# ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray")
+# #plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+# 
+# # plot ordination
+# plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+#   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+#   theme_bw()+
+#   theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+#   theme(panel.border = element_rect(colour = "black", size = 1))+
+#   geom_point(alpha = 0.7, size = 5) +
+#   #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+#   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+#   labs(col = "", shape = "")
+
+# ordination with proportion transform on raw reads and NMDS
+set.seed(123)
+pstrans = transform_sample_counts(ps_new, function(x) asinh(x)) # looks similar to non-transformed
+ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray") # stress = 0.1428031 
+#plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_asinh_nmds_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
+
+# ordination on only abundant ASVs
+set.seed(123)
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+ntaxa(ps_new)
+ntaxa(pstrans) #821
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (untransformed to proportion)
+ntaxa(pstrans)
+
+ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray") # stress = 0.1428031 
+#plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_abun_nmds_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+
+# days added sequentially
+plot_ordination(subset_samples(pstrans, Day == "0"), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#dbdbdb", "#F15A24","#FCEE21")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_abun_nmds_day0_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+
+plot_ordination(subset_samples(pstrans, Day %in% c("0", "5")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_abun_nmds_day5_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+
+plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_abun_nmds_day10_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+
+plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10", "30")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "", shape = "")
+
+ggsave(filename = "ordination_abun_nmds_day30_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+
+plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10", "30")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "Treatment", shape = "Day")
+
+ggsave(filename = "ordination_abun_nmds_legend_2024.11.25.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 11, dpi = 500) # adjust dimensions 
+
+# try adding ASV numbers
+plot_ordination(pstrans, ps_ord, type="split", color="Genus") 
+
+ggsave(filename = "ordination_genus_2024.12.05.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 100, height = 20, dpi = 300) 
+
+sample_points = data.frame(ps_ord[["points"]])
+sample_points$Sample = rownames(sample_points)
+
+asv_points = data.frame(ps_ord[["species"]])
+asv_points$ASV = rownames(asv_points)
+
+ggplot(sample_points, aes(x = MDS1, y = MDS2)) +
+  geom_point() +
+  scale_x_reverse() + 
+  geom_text(data = asv_points, aes(label = ASV), size = 2) +
+  theme_bw()
+
+ggsave(filename = "ordination_all_asvs_2024.12.05.png",
+       plot = last_plot(),
+       device = "png", units = "cm", width = 25, height = 20, dpi = 300) 
+
+
+```
+
+
+# make wide tables
+```{r}
+otu = t(data.frame(otu_table(ps_new)))
+tax = data.frame(tax_table(ps_new))
+met = data.frame(sample_data(ps_new))
+
+met_trim = select(met, Set, Day, Replicate)
+mett = data.frame(t(met_trim))
+
+abun = cbind(tax, otu)
+
+write.csv(abun, "full_abundance_table_2024.12.05.csv")
+write.csv(mett, "metadata_trim_2024.12.05.csv")
+
+# filtered to over 0.1% of any sample
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+
+otu = t(data.frame(otu_table(ps_filt_abun)))
+tax = data.frame(tax_table(ps_filt_abun))
+
+abun = cbind(tax, otu)
+
+write.csv(abun, "filter_0.1_table_2024.12.05.csv")
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (not proportion)
+
+# presence/absence
+
+# turn any non-zero values to TRUE, any zeros to FALSE from otu
+otu_pa = otu
+otu_pa[otu_pa > 0] = TRUE
+otu_pa[otu_pa == 0] = FALSE
+
+write.csv(otu_pa, "presence_absence_table_2024.12.05.csv")
+
+
+
+otu_pa = abun %>% mutate_if(is.numeric,as.logical) # turn to True/False
+
+```
+
+
+# venn diagram of overlapping ASVs
+```{r}
+# venn diagram of overlapping ASVs between Sets
+
+colnames(otu_pa)
+
+# compare replicates of Depth treatment day 5 # note ASVs outside
+ggplot(otu_pa, aes(A = `D-W1D1-5-R1`, B = `D-W1D1-5-R2`, C = `D-W1D1-5-R3`)) +
+  geom_venn() + theme_void() + coord_fixed()
+
+# compare replicates of Depth treatment day 10 # note ASVs outside
+ggplot(otu_pa, aes(A = `D-W1D1-10-R1`, B = `D-W1D1-10-R2`, C = `D-W1D1-10-R3`)) +
+  geom_venn() + theme_void() + coord_fixed()
+
+# library(VennDiagram)
+# display_venn <- function(x, ...){
+#   library(VennDiagram)
+#   grid.newpage()
+#   venn_object <- venn.diagram(x, filename = NULL, ...)
+#   grid.draw(venn_object)
+# }
+# display_venn(
+#   otu_pa,
+#   category.names = c("D-W1D1-10-R1" , "D-W1D1-10-R2" , "D-W1D1-10-R3", "D-W1D1-30-R1"),
+#   fill = c("#999999", "#E69F00", "#56B4E9", "#009E73")
+#   )
+
+
+```
+
+# nestedness and turnover
+```{r}
+# generated...
+
+# nestedness and turnover
+ps_new = psRO2
+ps_new = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) # proportion
+ps_new = prune_taxa(taxa_sums(ps_new) > 0, ps_new) # remove ASVs with 0 reads
+
+# nestedness
+nestedness = nestedbet(ps_new, method = "bray", null_model = "quasiswap", nreps = 1000)
+nestedness
+
+# turnover
+turnover = betadisper(ps_new, sample_data(ps_new)$Set, type = "bray")
+turnover
+
+# plot
+plot(nestedness)
+plot(turnover)
+
+
+```
+
+
+# DESeq with relative abundance data
+```{r}
+# compare within treatments between time points
+
+
+# compare across treatments at particular time points
+```
+
+
+# DESeq with presence/absence data
+```{r}
+# compare within treatments between time points
+
+
+# compare across treatments at particular time points
+```
+
+# remake ordination plot with asvs that are important, color by taxonomic rank that is meaningful
+
+
+# look at taxa
+```{r}
+# melt to data frame for all taxa
+asvs = data.frame(psmelt(ps_new)) # abundance in raw reads
+n_distinct(asvs$Family) 
+n_distinct(asvs$Genus)
+
+```
+
+
+```{r}
+psclust_long = psmelt(ps_new)
+
+#psclust_long = subset(psclust_long, sample %in% sb_samples)
+
+# define Phylum_Genus
+psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Genus, sep = "; ")
+psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Family, sep = "; ")
+
+
+# sum read counts by sample ID and phylum
+psclust_sum_genera = psclust_long %>% group_by(Sample, Phylum_Genus) %>% summarise(All = sum(Abundance)) # not proportional!
+
+# total reads
+sum(psclust_long$Abundance) # 7613584
+
+# phyla comprising 0.1% of all reads (Ruiz Gonzales 2022)
+all_genera_reads = psclust_long %>% group_by(Phylum_Genus) %>% summarise(Total = sum(Abundance)) 
+all_genera_reads$Proportion = (all_genera_reads$Total)/(sum(psclust_long$Abundance))*100
+all_genera_reads = subset(all_genera_reads, Total > 0)
+n_distinct(all_genera_reads$Phylum_Genus) #1285 (includes unclassifieds)
+
+sub_genera_reads = subset(all_genera_reads, Proportion >= 0.5 )  #0.5% # manually look for a cutoff!!
+
+sub_genera_reads = sub_genera_reads[order(-sub_genera_reads$Proportion),]
+sub_genera_reads$Phylum_Genus # 49/1749
+
+# how much of the reads are they ?
+sum(sub_genera_reads$Total)/sum(psclust_long$Abundance) # 0.8069878
+
+# store the order for plotting
+genera_list_0.3 = sub_genera_reads$Phylum_Genus
+
+# total reads per sample
+psclust_sum_sample = psclust_long %>% group_by(Sample) %>% summarise(Reads = sum(Abundance)) 
+check_data = data.frame(sample_data(ps_new))
+check_data$Sample = rownames(check_data)
+check_data2 = merge(psclust_sum_sample, check_data, by = "Sample")
+
+# merge sample separated with total per sample
+psclust_sum_genera2 = left_join(psclust_sum_genera, psclust_sum_sample, by = "Sample")
+
+# take proportion of sample-phylum per sample total
+psclust_sum_genera2$Proportion = (psclust_sum_genera2$All)/(psclust_sum_genera2$Reads)
+psclust_sum_genera2$Percent = (psclust_sum_genera2$All)/(psclust_sum_genera2$Reads)*100
+
+# subset to genera > 0.3% of total reads
+psclust_sum_genera2_sub = subset(psclust_sum_genera2, Phylum_Genus %in% c(genera_list_0.3))
+
+unique(psclust_sum_genera2_sub$Phylum_Genus) # check
+
+# create an "other"  group
+sub_genera_total = psclust_sum_genera2_sub %>% group_by(Sample) %>% summarise(Percent = sum(Percent)) 
+psclust_sum_genera2_other = psclust_sum_genera2_sub %>% group_by(Sample) %>% summarise(Percent = 100 - sum(Percent))
+psclust_sum_genera2_other$Phylum_Genus = "Other"
+
+# trim table 
+psclust_sum_genera_0.3 = data.frame(psclust_sum_genera2_sub$Sample, psclust_sum_genera2_sub$Percent, psclust_sum_genera2_sub$Phylum_Genus)
+colnames(psclust_sum_genera_0.3) = c("Sample", "Percent", "Phylum_Genus")
+
+# bind dataframes
+psclust_genera = rbind(psclust_sum_genera_0.3, psclust_sum_genera2_other)
+
+# merge with metadata
+genera_table = merge(check_data2, psclust_genera, by = "Sample")
+
+# specify order of samples by metadata file # well, depth order
+# genera_table$SampleID = as.factor(genera_table$SampleID)
+# meta = read.csv("Stinson_16S_metadata_2024.03.14.csv") #204 with sand
+# meta = subset(meta, Type != "Sand")
+# genera_table$SampleID = factor(genera_table$SampleID, levels = c(rev(meta$SampleID)))
+# levels(genera_table$SampleID) # reverse order for plot
+
+# specify order 
+genera_list_0.3_other = c(genera_list_0.3,  "Other")
+genera_table$Phylum_Genus = as.factor(genera_table$Phylum_Genus)
+genera_table$Phylum_Genus = factor(genera_table$Phylum_Genus, levels = c(rev(genera_list_0.3_other)))
+levels(genera_table$Phylum_Genus)
+
+# define colors
+colors_matt_30 =c( "white", "#a7b8c2", "#f0ece2", "#dfd3c3", "#c7b198" ,"#9c4f41", "#bf2651", "#4d6a94", "#b3785d", "#e6cc8a", "#997d76", "#ffd3a3" ,"#52216e", "#ffac7f" ,"#ff8766" ,"#e6a3a3", "#d6a57a", "#4b3d53" ,"#911d55", "#fafac3", "#99c2db", "#995c95", "#93c2a7", "#66333d", "#524a63", "#4c8f82" ,"#b2c5c7" ,"#357985" ,"#728794",  "#dfeded","#242b4a") # actually 31 with the white
+
+colors_matt_60 =c( "#a7b8c2", "#f0ece2", "#dfd3c3", "#c7b198" ,"#9c4f41", "#bf2651","#f6f694", "#4d6a94", "#b3785d", "#e6cc8a", "#997d76", "#ffd3a3" ,"#52216e", "#ffac7f" ,"#ff8766" ,"#e6a3a3", "#d6a57a", "#4b3d53" ,"#911d55", "#fafac3", "#99c2db", "#995c95", "#93c2a7", "#66333d", "#524a63", "#4c8f82" ,"#b2c5c7" ,"#357985" ,"#728794",  "#dfeded","#242b4a",
+                  "#5161a6", "#744d8b",  "#9779a8", "#b9a6c5", "#aab7be", "#d4dbde", "#e5795b","#ff9375","#ff9f84","#ffab93","#ffb7a3","#ffc3b2","#ffcfc1","#ffdbd1","#ffe7e0",  "#6fa59b", "#93bbb4", "#666666", "#7f7f7f", "#999999", "#b2b2b2", "#d4dbde", "#66333d", "#7a9baf", "#89aec5", "#99c2db", "#43364a", "#5d5064", "#6e6375")
+
+colors_matt_50  = sample(colors_matt_60, 50)
+colors_matt_50 = c(colors_matt_50, "white")
+ 
+# redefine NCs
+genera_table$Set = as.character(genera_table$Set)
+genera_table$Set = ifelse(genera_table$Set %in% c("NC", "NC W1", "NC W4", "NC D4"), "NC", genera_table$Set)
+genera_table$Set = as.factor(genera_table$Set)
+genera_table$Set = factor(genera_table$Set, levels = c("NC",  "PC W4", "PC W1", "D", "S"))
+
+ggplot(genera_table, aes(x = Percent, y = Sample)) +
+  geom_bar(stat = "identity", aes(fill = Phylum_Genus))+
+  theme_bw() +
+  facet_wrap(~Set, nrow = 1, ncol = 5, scales = "free") +
+  #facet_grid(~Day, scales = "free")+
+  theme(strip.text = element_text(size = 11)) +
+  #guides(fill = guide_legend(ncol = 1)) +
+  theme(legend.position = "none") +
+  #scale_y_continuous(limits = c(0, 50)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) + 
+  scale_fill_manual(values = (colors_matt_30), name = "Taxa") +
+  labs(x = "\nRelative Abundance (%)", y = "")
+
+ggsave("Family_Stacked_0.5_2024.04.02.png", plot = last_plot(),
+       units = "cm", width = 35, height = 10, dpi = 300)
+
+ggplot(genera_table, aes(x = Percent, y = Sample)) +
+  geom_bar(stat = "identity", aes(fill = Phylum_Genus))+
+  theme_bw() +
+  #facet_wrap(~Set, nrow = 1, ncol = 5, scales = "free") +
+  #facet_grid(~Day, scales = "free")+
+  theme(strip.text = element_text(size = 11)) +
+  #guides(fill = guide_legend(ncol = 1)) +
+  #theme(legend.position = "none") +
+  #scale_y_continuous(limits = c(0, 50)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) + 
+  scale_fill_manual(values = rev(colors_matt_30), name = "Taxa") +
+  labs(x = "\nRelative Abundance (%)", y = "") +
+  guides(fill=guide_legend(ncol=4))
+
+ggsave("Family_legend_0.5_2024.04.02.png", plot = last_plot(),
+       units = "cm", width = 35, height = 20, dpi = 500)
+
+
+
+
+```
+
+
+```{r}
+# 0.1% of any sample abundance filter
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+ntaxa(ps_new)
+ntaxa(ps_filt_abun) #821
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works!
+ntaxa(pstrans)
+
+asvs_0.1 = data.frame(psmelt(pstrans))
+n_distinct(asvs_0.1$Genus) 
+```
+
+
+# Katie's analysis:
+### Beta diversity - CAP with Brays Curtis
+```{r}
+psDR <- psRO2 %>%
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE)
+
+sample_data(psDR)$elevation <- as.numeric(sample_data(psDR)$elevation)
+sample_data(psDR)$salinity <- as.numeric(sample_data(psDR)$salinity)
+sample_data(psDR)$nitrate <- as.numeric(sample_data(psDR)$nitrate)
+sample_data(psDR)$distance_well1 <- as.numeric(sample_data(psDR)$distance_well1)
+sample_data(psDR)$Day <- factor(as.numeric(as.character(sample_data(psDR)$Day)))
+
+#PCoA and Brays-Curtis
+ord.bray <- ordinate(physeq = psDR, method = "PCoA", distance = "bray")
+plot_scree(ord.bray)
+
+p.pcoa <-plot_ordination(psDR, 
+                ord.bray, 
+                color="Day", 
+                shape="Set")+
+  geom_point(size=3)+
+  #scale_color_continuous(low="blue", high="goldenrod2")+
+  labs(main="PCoA")+
+  theme(panel.grid=element_blank())
+
+p.pcoa
+```
+
+```{r}
+# CAP
+dist <- phyloseq::distance(physeq = psDR, method = "bray")
+ord_CAP_BC <- phyloseq::ordinate(psDR, method = "CAP", distance = dist, formula = ~ Set + Day)
+
+# CAP + Brays-Curtis
+cap_plot <- plot_ordination(psDR, ord_CAP_BC, color = "Set", shape = "Day", axes = c(1,2)) + 
+    geom_point(aes(colour = Set, shape = Day), size = 2, alpha = 0.5) + 
+    #scale_color_viridis(name = "Day Post Deployment", direction = -1, limits=c(-2,1)) +
+    guides(shape = guide_legend(title = "Set")) +
+    pretty_plot + theme(legend.position = "bottom")
+
+arrowmat <- vegan::scores(ord_CAP_BC, display = "bp")
+arrowdf <- data.frame(labels = rownames(arrowmat), arrowmat)
+
+arrow_map <- aes(xend = CAP1, yend = CAP2, x = 0, y = 0, shape = NULL, color = NULL, label = labels)
+
+label_map <- aes(x = 1.3 * CAP1, y = 1.3 * CAP2, shape = NULL, color = NULL, label = labels)
+
+arrowhead = arrow(length = unit(0.02, "npc"))
+
+CAP <- cap_plot + 
+  geom_segment(mapping = arrow_map, size = .5, data = arrowdf, color = "gray", arrow = arrowhead) + 
+  geom_text(mapping = label_map, size = 4, data = arrowdf, show.legend = FALSE)
+  
+CAP
+ggsave(filename = paste0(dirPath, "/figures", "/RO2_CAP_BC.png"), plot = last_plot(),
+       device = "png", units = "cm", width = 17, height = 17, dpi = 300)
+```
+
+### Alpha diversity
+```{r}
+# Plot alpha diversity
+shannon <- psRO2 %>%
+  plot_richness(x = "Day", measures = "Shannon", shape = NA) +
+    geom_boxplot(outlier.shape = NA, show.legend = FALSE) + 
+    geom_jitter(aes(color = sample_data(psRO2)$Day), shape = 1, position = position_jitter(0.2)) +
+    facet_grid(.~Set, scales = "free", space = "free") +
+    scale_y_continuous(limits = c(0, 9),
+                       breaks = c(seq(0, 8, 1)),
+                       expand = c(0,0)) +
+    
+    ylab("Shannon's Diversity Index") + xlab("Day of Extraction") +
+    pretty_plot + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+    scale_color_brewer(palette = "Dark2") + labs(color = "Date")
+shannon
+
+ggsave(filename = paste0(dirPath, "/figures", "/RO2_alpha_diversity.png"), plot = last_plot(),
+       device = "png", units = "cm", width = 15, height = 10, dpi = 300)
+```
+
+### Relative abundances
+```{r}
+rel_abund <- psRO2 %>%
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  #filter_taxa(., function(x) max(x) > 0.1, TRUE) %>%
+  psmelt()
+
+rel_abund$Phylum[is.na(rel_abund$Phylum)] <- "Other"
+
+rel_abund_2 <- aggregate(rel_abund[c("Abundance")], rel_abund[c("Set", "Original_Samp", "Day", "OTU")], FUN = function(x) {mean(x)})
+temp <- unique(data.frame("OTU" = rel_abund$OTU, "Phylum" = rel_abund$Phylum, "Class" = rel_abund$Class, "Order" = rel_abund$Order, "Family" = rel_abund$Family, "Genus" = rel_abund$Genus))
+rel_abund_2 <- merge.data.frame(rel_abund_2, temp, by = c("OTU"))
+rel_abund_3 <- aggregate(rel_abund_2[c("Abundance")], rel_abund_2[c("Set", "Original_Samp", "Day", "Phylum")], FUN = function(x) {sum(x)})
+
+temp <- aggregate(rel_abund_3[c("Abundance")], rel_abund_3[c("Phylum")], FUN = function(x) 
+                  if (mean(x) < 0.01) {
+                    return("Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == "Other")
+rel_abund_3$Phylum_2 <- rel_abund_3$Phylum
+rel_abund_3$Phylum_2[rel_abund_3$Phylum_2 %in% temp$Phylum] <- "Other"
+#rel_abund_2 <- aggregate(rel_abund_2[c("Abundance")], rel_abund_2[c("Sample", "Phylum_2")], FUN = function(x) sum(x))
+#well_info <- unique(cbind.data.frame("Sample" = rel_abund[,2], rel_abund[,4:26]))
+#well_info$date_tide <- well_info$descript
+#rel_abund_2 <- merge.data.frame(rel_abund_2, well_info, by = c("location", "date_tide"))
+#rel_abund_2$elevation[rel_abund_2$Well == "Seawater"] <- 0
+
+mycolors = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Set3", n = 12))
+mycolors = c(mycolors[1:9], mycolors[11:20])
+mycolors = c(mycolors[1:8], "grey", mycolors[10:20])
+mycolors = c("grey", viridis_pal(option="H")(56))
+
+phylum_plot <- ggplot(rel_abund_3, aes(x = Day, y = Abundance, fill = Phylum_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(.~Set, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "Phylum") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+phylum_plot
+```
+
+### How do the negative controls change with time?
+```{r}
+rel_abund_NC <- subset(rel_abund, Set == "Negative Control")
+
+temp <- aggregate(rel_abund_NC[c("Abundance")], rel_abund_NC[c("OTU")], FUN = function(x) 
+                  if (mean(x) < 0.5) {
+                    return("Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == "Other")
+rel_abund_NC$OTU_2 <- rel_abund_NC$OTU
+rel_abund_NC$OTU_2[rel_abund_NC$OTU_2 %in% temp$OTU] <- "Other"
+
+rel_abund_NC$Location <- "Well #1\nDeep"
+rel_abund_NC$Location[rel_abund_NC$Sample == "NC-Sterile-0-R1"] <- "Initial"
+rel_abund_NC$Location[rel_abund_NC$Sample %in% c("NCW4-Sterile-10-R1", "NCW4-Sterile-30-R1", "NCW4-Sterile-5-R1")] <- "Well #4\nShallow"
+rel_abund_NC$Location[rel_abund_NC$Sample %in% c("NCW1-Sterile-10-R1", "NCW1-Sterile-30-R1", "NCW1-Sterile-5-R1")] <- "Well #1\nShallow"
+
+mycolors = c(viridis_pal(option="H")(34), "grey")
+
+NC_plot <- ggplot(rel_abund_NC, aes(x = Day, y = Abundance, fill = OTU_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(.~Location, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "ASV") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+NC_plot
+
+temp <- aggregate(rel_abund_NC[c("Abundance")], rel_abund_NC[c("Phylum")], FUN = function(x) 
+                  if (mean(x) < 0.001) {
+                    return(" Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == " Other")
+rel_abund_NC$Phylum_2 <- rel_abund_NC$Phylum
+rel_abund_NC$Phylum_2[rel_abund_NC$Phylum_2 %in% temp$Phylum] <- " Other"
+
+mycolors = c("grey", viridis_pal(option="H")(10))
+
+NC_plot <- ggplot(rel_abund_NC, aes(x = Day, y = Abundance, fill = Phylum_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(.~Location, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "Phylum") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+NC_plot
+```
+^^^Clearly the negative controls are changing over the course of the experiment -- it seems the Firmicutes and Camplyobacterota do well in the Well 1 environments in particular
+
+### What about the location controls? a.k.a. positive controls
+```{r}
+rel_abund_PC <- subset(rel_abund, Set %in% c("W4D1 Unchanged Location", "W1D1 Unchanged Location"))
+
+temp <- aggregate(rel_abund_PC[c("Abundance")], rel_abund_PC[c("Phylum")], FUN = function(x) 
+                  if (mean(x) < 0.0001) {
+                    return(" Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == " Other")
+rel_abund_PC$Phylum_2 <- rel_abund_PC$Phylum
+rel_abund_PC$Phylum_2[rel_abund_PC$Phylum_2 %in% temp$Phylum] <- " Other"
+
+mycolors = c("grey", viridis_pal(option="H")(58))
+
+PC_plot <- ggplot(rel_abund_PC, aes(x = Day, y = Abundance, fill = Phylum_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(Replicate~Set, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "Phylum") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+PC_plot
+```
+
+### What happens at the Well 1 locations?
+```{r}
+rel_abund_W1 <- subset(rel_abund, Set %in% c("W1D1 Unchanged Location", "Increased Depth"))
+
+temp <- aggregate(rel_abund_W1[c("Abundance")], rel_abund_W1[c("Phylum")], FUN = function(x) 
+                  if (mean(x) < 0.0001) {
+                    return(" Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == " Other")
+rel_abund_W1$Phylum_2 <- rel_abund_W1$Phylum
+rel_abund_W1$Phylum_2[rel_abund_W1$Phylum_2 %in% temp$Phylum] <- " Other"
+
+mycolors = c("grey", viridis_pal(option="H")(60))
+
+W1_plot <- ggplot(rel_abund_W1, aes(x = Set, y = Abundance, fill = Phylum_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(Replicate~Day, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "Phylum") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+W1_plot
+```
+
+### What happens at the Well 4 locations?
+```{r}
+rel_abund_W4 <- subset(rel_abund, Set %in% c("W4D1 Unchanged Location", "Increased Salinity"))
+
+temp <- aggregate(rel_abund_W4[c("Abundance")], rel_abund_W4[c("Phylum")], FUN = function(x) 
+                  if (mean(x) < 0.0001) {
+                    return(" Other")
+                  } else {
+                    return(mean(x))
+                  })
+
+temp <- subset(temp, Abundance == " Other")
+rel_abund_W4$Phylum_2 <- rel_abund_W4$Phylum
+rel_abund_W4$Phylum_2[rel_abund_W4$Phylum_2 %in% temp$Phylum] <- " Other"
+
+mycolors = c("grey", viridis_pal(option="H")(56))
+
+W4_plot <- ggplot(rel_abund_W4, aes(x = Set, y = Abundance, fill = Phylum_2)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(Replicate~Day, scales = "free", space = "free") + 
+  #scale_y_continuous(limits = c(0, 100),
+   #                  breaks = c(seq(0, 100, 10)),
+    #                 expand = c(0,0)) +
+  scale_fill_manual(values = mycolors) +
+  ylab("Relative Abundance (%)") + xlab("Day of Extraction") + labs(fill = "Phylum") +
+  pretty_plot + theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+W4_plot
+```
+
