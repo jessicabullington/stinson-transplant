@@ -5,6 +5,7 @@ editor_options:
   chunk_output_type: console
 ---
 
+# load libraries
 ```{r}
 library(ggplot2)
 library(phyloseq)
@@ -221,12 +222,14 @@ ggsave(filename = "RO2_phosphate_pumped.png", plot = last_plot(),
 ```
 
 
-# STEP 1: Import phyloseq object that has the negative control ASVs and singletons filtered out
 
+# phyloseq object
 To begin, let's load in our saved phyloseq object if needed. Let's also rename the samples to something more informative than what they were named for sequencing. We'll rename them using the experimental metadata.
 
 ```{r}
-psRO2 <- readRDS(file = paste0(dirPath, "/robjects", "/psRO2_new.rds"))
+dirPath <- "/Users/jessicabullington/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/stinson-transplant"
+
+ps_new <- readRDS(file = paste0(dirPath, "/robjects", "/psRO2_new.rds"))
 
 ```
 
@@ -289,7 +292,7 @@ sample_data(psRO2)
 
 
 ```
-# change NA taxa_names to higher level names
+## change NA taxa_names to higher level names
 ```{r}
 #https://github.com/joey711/phyloseq/issues/990
 
@@ -383,7 +386,7 @@ write.csv(tax.clean, "tax_table_2024.11.25.csv")
 
 ```
 
-# remove mitochondria and chloroplast and eukaryotes and totally unclassified ASVs
+## remove mitochondria and chloroplast and eukaryotes and totally unclassified ASVs
 ```{r}
 mito <- psRO2 %>%
   transform_sample_counts(., function(x) 100*x/sum(x)) %>%
@@ -435,7 +438,7 @@ ro2_meta = data.frame(sample_data(ps_new))
 
 ```
 
-# reads
+## reads
 ```{r}
 reads = data.frame(reads_raw = sample_sums(psRO2))
 reads$reads_trim = sample_sums(ps_new)
@@ -468,7 +471,8 @@ ggsave(filename = "reads_trim.png", plot = last_plot(),
 
 # ordination
 ```{r}
-sample_data(ps_new)$Day <- as.factor(as.character(sample_data(ps_new)$Day))
+sample_data(ps_new)$Day <- as.factor(as.character(sample_data(ps_new)$Day)) # change the order!
+sample_data(ps_new)$Day <- factor(sample_data(ps_new)$Day, levels = c("0", "5", "10", "30"))
 sample_data(ps_new)$Set <- as.factor(as.character(sample_data(ps_new)$Set))
 sample_data(ps_new)$Set <- factor(sample_data(ps_new)$Set, levels = c("NC", "NC W1", "NC D4", "NC W4", "PC W1", "PC W4", "D", "S"))
 
@@ -488,9 +492,10 @@ plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_asinh_pcoa_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
+
+# ggsave(filename = "ordination_asinh_pcoa_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
 
 
 # # ordination with proportion transform on raw reads and PCoA
@@ -558,9 +563,9 @@ plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_asinh_nmds_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
+# ggsave(filename = "ordination_asinh_nmds_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
 
 # ordination on only abundant ASVs
 set.seed(123)
@@ -587,9 +592,9 @@ plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_abun_nmds_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+# ggsave(filename = "ordination_abun_nmds_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
 
 # days added sequentially
 plot_ordination(subset_samples(pstrans, Day == "0"), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
@@ -603,9 +608,9 @@ plot_ordination(subset_samples(pstrans, Day == "0"), ps_ord, color = "Set", shap
   scale_color_manual(values = c("#dbdbdb", "#F15A24","#FCEE21")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_abun_nmds_day0_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+# ggsave(filename = "ordination_abun_nmds_day0_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
 
 plot_ordination(subset_samples(pstrans, Day %in% c("0", "5")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
@@ -618,9 +623,9 @@ plot_ordination(subset_samples(pstrans, Day %in% c("0", "5")), ps_ord, color = "
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_abun_nmds_day5_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+# ggsave(filename = "ordination_abun_nmds_day5_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
 
 plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
@@ -633,9 +638,9 @@ plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10")), ps_ord, col
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_abun_nmds_day10_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+# ggsave(filename = "ordination_abun_nmds_day10_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
 
 plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10", "30")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
@@ -647,9 +652,9 @@ plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10", "30")), ps_or
   scale_color_manual(values = c("#dbdbdb", "#b7b7b7",  "#7a7a7a", "#3d3d3d","#F15A24","#FCEE21", "#009245", "#0071BC")) + 
   labs(col = "", shape = "")
 
-ggsave(filename = "ordination_abun_nmds_day30_2024.11.25.png",
-       plot = last_plot(),
-       device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
+# ggsave(filename = "ordination_abun_nmds_day30_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 500) # adjust dimensions 
 
 plot_ordination(subset_samples(pstrans, Day %in% c("0", "5", "10", "30")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
   #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
@@ -790,6 +795,182 @@ plot(turnover)
 
 ```
 
+# hierarchical cluster
+```{r}
+# subset to PC W1 samples
+pcw1 = subset_samples(ps_new, Set == "PC W1")
+
+# remove taxa without reads
+pcw1 = prune_taxa(taxa_sums(pcw1) > 0, pcw1) # remove ASVs with 0 reads
+ntaxa(pcw1) #8594
+
+# inspect otu table
+pcw1_otus = t(data.frame(otu_table(pcw1)))
+
+# remove taxa with less than 0.1% abundance of any sample
+pcw1_filt = transform_sample_counts(pcw1, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE)
+ntaxa(pcw1_filt) #355
+pcw1_filt_otus = t(data.frame(otu_table(pcw1_filt)))
+pcw1_filt_untrans = pcw1 %>% prune_taxa(row.names(tax_table(pcw1_filt)),.) #works! (untransformed to proportion)
+ntaxa(pcw1_filt_untrans) #355
+pcw1_filt_untrans_otus = t(data.frame(otu_table(pcw1_filt_untrans)))
+
+pcw1_filt_untrans_melt = psmelt(pcw1_filt_untrans)
+
+# column sums for reads
+colSums(pcw1_filt_otus) # proportional reads after filtering - doesn't add to 1
+
+colSums(pcw1_filt_untrans_otus) # reads after filtering
+
+# hierarchical cluster with hclust
+
+
+set.seed(123)
+
+# bray dissimilarity matrix
+#pstrans = transform_sample_counts(ps, function(x) asinh(x)) 
+#mat = phyloseq::distance(physeq = pstrans, method = "bray", type = "samples")
+#mat2 = (as.matrix(mat))
+
+# bray dissimilarity matrix ~ untransformed
+mat = phyloseq::distance(physeq = pcw1_filt_untrans, method = "bray", type = "taxa")
+mat2 = (as.matrix(mat))
+
+
+# heatmap of ordination with dendrogram
+png('PCW1_ASVs_0.1_Hierarchical_2025.02.22.png', units="in", width=25, height=25, res=300)
+heatmap(x = mat2, col = magma(20), symm = T) 
+dev.off()
+
+h1 = heatmap(x = mat2, col = magma(20), symm = T) 
+r1list = data.frame(1:355)
+r1list$Order = h1$rowInd # order of dendrogram
+r1list$OTU = rownames(pcw1_filt_untrans_otus)
+
+r1list2 = reorder(r1list$OTU, r1list$Order)
+
+
+ggplot(pcw1_filt_untrans_melt, aes(x = Sample, y = reorder(OTU, )) + # change OTU to taxonomy
+  geom_tile(aes(fill = Proportion)) +
+  scale_y_discrete() +
+  #scale_fill_viridis(option = "magma", direction = -1) +
+  scale_fill_gradientn(colours = rev(c("#000004FF", "#000004FF", "#000004FF", "#000004FF", "#000004FF", "#07071DFF", "#160F3BFF", "#29115AFF", "#400F73FF", "#400F73FF", "#56147DFF", "#6B1D81FF", "#802582FF", "#952C80FF", "#AB337CFF", "#C03A76FF", "#C03A76FF", "#D6456CFF",   "#E85362FF","#F4685CFF", "#FA815FFF", "#FD9A6AFF", "#FEB37BFF", "#FCFDBFFF")),
+                        values = c(seq(from = 0, to = 6.5, length.out = 24))/6.5, limits = c(0, 6.5),
+                        name = "Relative \nAbundance (%)") + # needs to scale to 0-1
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "", y = "") 
+
+
+ggsave("Indicator_red_ASVs_2024.06.21.png", plot = last_plot(),
+       units = "cm", width = 30, height = 20, dpi = 300)
+
+
+```
+
+# percent persistent vs new recruits
+```{r}
+# subset each Day
+pcw1_filt_untrans_day0 = subset_samples(pcw1_filt_untrans, Day == "0")
+pcw1_filt_untrans_day5 = subset_samples(pcw1_filt_untrans, Day == "5")
+pcw1_filt_untrans_day10 = subset_samples(pcw1_filt_untrans, Day == "10")
+pcw1_filt_untrans_day30 = subset_samples(pcw1_filt_untrans, Day == "30")
+
+# remove taxa without reads
+pcw1_filt_untrans_day0 = prune_taxa(taxa_sums(pcw1_filt_untrans_day0) > 0, pcw1_filt_untrans_day0) 
+pcw1_filt_untrans_day5 = prune_taxa(taxa_sums(pcw1_filt_untrans_day5) > 0, pcw1_filt_untrans_day5)
+pcw1_filt_untrans_day10 = prune_taxa(taxa_sums(pcw1_filt_untrans_day10) > 0, pcw1_filt_untrans_day10)
+pcw1_filt_untrans_day30 = prune_taxa(taxa_sums(pcw1_filt_untrans_day30) > 0, pcw1_filt_untrans_day30)
+
+# count number of taxa
+ntaxa(pcw1_filt_untrans_day0) # 179
+ntaxa(pcw1_filt_untrans_day5) # 299
+ntaxa(pcw1_filt_untrans_day10) # 355
+ntaxa(pcw1_filt_untrans_day30) # 305
+
+# get list of taxa
+taxa_day0 = rownames(tax_table(pcw1_filt_untrans_day0))
+taxa_day5 = rownames(tax_table(pcw1_filt_untrans_day5))
+taxa_day10 = rownames(tax_table(pcw1_filt_untrans_day10))
+taxa_day30 = rownames(tax_table(pcw1_filt_untrans_day30))
+                      
+# get intersection of taxa (persistence)
+persist_day0_day5 = nrow(data.frame(intersect(taxa_day0, taxa_day5)))/ntaxa(pcw1_filt_untrans_day5)
+persist_day0_day10 = nrow(data.frame(intersect(taxa_day0, taxa_day10)))/ntaxa(pcw1_filt_untrans_day10)
+persist_day0_day30 = nrow(data.frame(intersect(taxa_day0, taxa_day30)))/ntaxa(pcw1_filt_untrans_day30)
+
+persist_day5_day10 = nrow(data.frame(intersect(taxa_day5, taxa_day10)))/ntaxa(pcw1_filt_untrans_day10)
+persist_day5_day30 = nrow(data.frame(intersect(taxa_day5, taxa_day30)))/ntaxa(pcw1_filt_untrans_day30)
+
+persist_day10_day30 = nrow(data.frame(intersect(taxa_day10, taxa_day30)))/ntaxa(pcw1_filt_untrans_day30)
+
+
+taxa_intersect = Reduce(intersect, list(taxa_day0, taxa_day5, taxa_day10, taxa_day30))
+
+persist_alldays = nrow(data.frame(intersect(taxa_day0, taxa_day5, taxa_day10, taxa_day30)))/ntaxa(pcw1_filt_untrans)
+
+
+#taxa_intersect = Reduce(intersect, list(taxa_day0, taxa_day5, taxa_day10, taxa_day30))
+persist_alldays = intersect(intersect(taxa_day0, taxa_day5), intersect(taxa_day10, taxa_day30))
+# 148/355 so 41.69014 % persist over all days
+
+
+
+
+```
+
+
+# venn diagram of persistent or recruited ASVs
+```{r}
+
+# venn diagram with intersect values
+ggplot(otu_pa, aes(A = `D-W1D1-5-R1`, B = `D-W1D1-5-R2`, C = `D-W1D1-5-R3`)) +
+  geom_venn() + theme_void() + coord_fixed()
+
+set.seed(20190708)
+genes <- paste("gene",1:1000,sep="")
+x <- list(
+  A = taxa_day0, 
+  B = taxa_day5, 
+  C = taxa_day10,
+  D = taxa_day30
+  )
+
+x <- list(
+  A = sample(genes,300), 
+  B = sample(genes,525), 
+  C = sample(genes,440),
+  D = sample(genes,350)
+  )
+
+if (!require(devtools)) install.packages("devtools")
+devtools::install_github("gaospecial/ggVennDiagram")
+
+library("ggVennDiagram")
+
+ggVennDiagram(
+  x, label_alpha = 0,
+  category.names = c("Day 0","Day 5","Day 10", "Day 30")
+  ) + 
+  ggplot2::scale_fill_gradient(low="blue",high = "yellow")
+
+
+if (!require(devtools)) install.packages("devtools")
+devtools::install_github("yanlinlin82/ggvenn")
+library("ggvenn")
+
+names(x) <- c("Day 0","Day 5","Day 10", "Day 30")
+ggvenn(
+  x, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 0.5, set_name_size = 4
+  )
+
+ggvenn(x)
+
+```
+
 
 # DESeq with relative abundance data
 ```{r}
@@ -820,15 +1001,19 @@ n_distinct(asvs$Genus)
 
 ```
 
-
+# genus plot
 ```{r}
 psclust_long = psmelt(ps_new)
 
 #psclust_long = subset(psclust_long, sample %in% sb_samples)
 
 # define Phylum_Genus
-psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Genus, sep = "; ")
-psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Family, sep = "; ")
+
+#psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Genus, sep = "; ")
+#psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Family, sep = "; ")
+
+psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Class, psclust_long$Order, psclust_long$Family, psclust_long$Genus, sep = "; ")
+
 
 
 # sum read counts by sample ID and phylum
@@ -842,6 +1027,8 @@ all_genera_reads = psclust_long %>% group_by(Phylum_Genus) %>% summarise(Total =
 all_genera_reads$Proportion = (all_genera_reads$Total)/(sum(psclust_long$Abundance))*100
 all_genera_reads = subset(all_genera_reads, Total > 0)
 n_distinct(all_genera_reads$Phylum_Genus) #1285 (includes unclassifieds)
+
+
 
 sub_genera_reads = subset(all_genera_reads, Proportion >= 0.5 )  #0.5% # manually look for a cutoff!!
 
@@ -969,6 +1156,142 @@ ntaxa(pstrans)
 
 asvs_0.1 = data.frame(psmelt(pstrans))
 n_distinct(asvs_0.1$Genus) 
+```
+
+
+```{r}
+psclust_long = psmelt(pstrans) # actually trimming out low abunance ASVs first before genus sum might not make sense
+
+#psclust_long = subset(psclust_long, sample %in% sb_samples)
+
+# define Phylum_Genus
+psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Class, psclust_long$Order, psclust_long$Family, psclust_long$Genus, sep = "; ")
+#psclust_long$Phylum_Genus = paste(psclust_long$Phylum, psclust_long$Family, sep = "; ")
+
+
+# sum read counts by sample ID and phylum
+psclust_sum_genera = psclust_long %>% group_by(Sample, Phylum_Genus) %>% summarise(All = sum(Abundance)) # not proportional!
+
+# total reads
+sum(psclust_long$Abundance) # 7613584
+
+# phyla comprising 0.1% of all reads (Ruiz Gonzales 2022)
+all_genera_reads = psclust_long %>% group_by(Phylum_Genus) %>% summarise(Total = sum(Abundance)) 
+all_genera_reads$Proportion = (all_genera_reads$Total)/(sum(psclust_long$Abundance))*100
+all_genera_reads = subset(all_genera_reads, Total > 0)
+n_distinct(all_genera_reads$Phylum_Genus) #1285 (includes unclassifieds)
+
+sub_genera_reads = subset(all_genera_reads, Proportion >= 0.5 )  #0.5% # manually look for a cutoff!!
+sub_genera_reads = subset(all_genera_reads, Proportion >= 0 )  # keep everything
+
+sub_genera_reads = sub_genera_reads[order(-sub_genera_reads$Proportion),]
+sub_genera_reads$Phylum_Genus # 49/1749
+
+# how much of the reads are they ?
+sum(sub_genera_reads$Total)/sum(psclust_long$Abundance) # 0.8069878
+
+# store the order for plotting
+genera_list_0.3 = sub_genera_reads$Phylum_Genus
+
+# total reads per sample
+psclust_sum_sample = psclust_long %>% group_by(Sample) %>% summarise(Reads = sum(Abundance)) 
+check_data = data.frame(sample_data(ps_new))
+check_data$Sample = rownames(check_data)
+check_data2 = merge(psclust_sum_sample, check_data, by = "Sample")
+
+# merge sample separated with total per sample
+psclust_sum_genera2 = left_join(psclust_sum_genera, psclust_sum_sample, by = "Sample")
+
+# take proportion of sample-phylum per sample total
+psclust_sum_genera2$Proportion = (psclust_sum_genera2$All)/(psclust_sum_genera2$Reads)
+psclust_sum_genera2$Percent = (psclust_sum_genera2$All)/(psclust_sum_genera2$Reads)*100
+
+# subset to genera > 0.3% of total reads
+psclust_sum_genera2_sub = subset(psclust_sum_genera2, Phylum_Genus %in% c(genera_list_0.3))
+
+unique(psclust_sum_genera2_sub$Phylum_Genus) # check
+
+# create an "other"  group
+sub_genera_total = psclust_sum_genera2_sub %>% group_by(Sample) %>% summarise(Percent = sum(Percent)) 
+psclust_sum_genera2_other = psclust_sum_genera2_sub %>% group_by(Sample) %>% summarise(Percent = 100 - sum(Percent))
+psclust_sum_genera2_other$Phylum_Genus = "Other"
+
+# trim table 
+psclust_sum_genera_0.3 = data.frame(psclust_sum_genera2_sub$Sample, psclust_sum_genera2_sub$Percent, psclust_sum_genera2_sub$Phylum_Genus)
+colnames(psclust_sum_genera_0.3) = c("Sample", "Percent", "Phylum_Genus")
+
+# bind dataframes
+psclust_genera = rbind(psclust_sum_genera_0.3, psclust_sum_genera2_other)
+
+# merge with metadata
+genera_table = merge(check_data2, psclust_genera, by = "Sample")
+
+# specify order of samples by metadata file # well, depth order
+# genera_table$SampleID = as.factor(genera_table$SampleID)
+# meta = read.csv("Stinson_16S_metadata_2024.03.14.csv") #204 with sand
+# meta = subset(meta, Type != "Sand")
+# genera_table$SampleID = factor(genera_table$SampleID, levels = c(rev(meta$SampleID)))
+# levels(genera_table$SampleID) # reverse order for plot
+
+# specify order 
+genera_list_0.3_other = c(genera_list_0.3,  "Other")
+genera_table$Phylum_Genus = as.factor(genera_table$Phylum_Genus)
+genera_table$Phylum_Genus = factor(genera_table$Phylum_Genus, levels = c(rev(genera_list_0.3_other)))
+levels(genera_table$Phylum_Genus)
+
+# define colors
+colors_matt_30 =c( "white", "#a7b8c2", "#f0ece2", "#dfd3c3", "#c7b198" ,"#9c4f41", "#bf2651", "#4d6a94", "#b3785d", "#e6cc8a", "#997d76", "#ffd3a3" ,"#52216e", "#ffac7f" ,"#ff8766" ,"#e6a3a3", "#d6a57a", "#4b3d53" ,"#911d55", "#fafac3", "#99c2db", "#995c95", "#93c2a7", "#66333d", "#524a63", "#4c8f82" ,"#b2c5c7" ,"#357985" ,"#728794",  "#dfeded","#242b4a") # actually 31 with the white
+
+colors_matt_60 =c( "#a7b8c2", "#f0ece2", "#dfd3c3", "#c7b198" ,"#9c4f41", "#bf2651","#f6f694", "#4d6a94", "#b3785d", "#e6cc8a", "#997d76", "#ffd3a3" ,"#52216e", "#ffac7f" ,"#ff8766" ,"#e6a3a3", "#d6a57a", "#4b3d53" ,"#911d55", "#fafac3", "#99c2db", "#995c95", "#93c2a7", "#66333d", "#524a63", "#4c8f82" ,"#b2c5c7" ,"#357985" ,"#728794",  "#dfeded","#242b4a",
+                  "#5161a6", "#744d8b",  "#9779a8", "#b9a6c5", "#aab7be", "#d4dbde", "#e5795b","#ff9375","#ff9f84","#ffab93","#ffb7a3","#ffc3b2","#ffcfc1","#ffdbd1","#ffe7e0",  "#6fa59b", "#93bbb4", "#666666", "#7f7f7f", "#999999", "#b2b2b2", "#d4dbde", "#66333d", "#7a9baf", "#89aec5", "#99c2db", "#43364a", "#5d5064", "#6e6375")
+
+colors_matt_50  = sample(colors_matt_60, 50)
+colors_matt_50 = c(colors_matt_50, "white")
+ 
+# redefine NCs
+genera_table$Set = as.character(genera_table$Set)
+genera_table$Set = ifelse(genera_table$Set %in% c("NC", "NC W1", "NC W4", "NC D4"), "NC", genera_table$Set)
+genera_table$Set = as.factor(genera_table$Set)
+genera_table$Set = factor(genera_table$Set, levels = c("NC",  "PC W4", "PC W1", "D", "S"))
+
+ggplot(genera_table, aes(x = Percent, y = Sample)) +
+  geom_bar(stat = "identity", aes(fill = Phylum_Genus))+
+  theme_bw() +
+  facet_wrap(~Set, nrow = 1, ncol = 5, scales = "free") +
+  #facet_grid(~Day, scales = "free")+
+  theme(strip.text = element_text(size = 11)) +
+  #guides(fill = guide_legend(ncol = 1)) +
+  theme(legend.position = "none") +
+  #scale_y_continuous(limits = c(0, 50)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) + 
+  scale_fill_manual(values = (colors_matt_30), name = "Taxa") +
+  labs(x = "\nRelative Abundance (%)", y = "")
+
+# ggsave("Family_Stacked_0.5_2024.04.02.png", plot = last_plot(),
+#        units = "cm", width = 35, height = 10, dpi = 300)
+
+ggplot(genera_table, aes(x = Percent, y = Sample)) +
+  geom_bar(stat = "identity", aes(fill = Phylum_Genus))+
+  theme_bw() +
+  #facet_wrap(~Set, nrow = 1, ncol = 5, scales = "free") +
+  #facet_grid(~Day, scales = "free")+
+  theme(strip.text = element_text(size = 11)) +
+  #guides(fill = guide_legend(ncol = 1)) +
+  #theme(legend.position = "none") +
+  #scale_y_continuous(limits = c(0, 50)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) + 
+  scale_fill_manual(values = rev(colors_matt_30), name = "Taxa") +
+  labs(x = "\nRelative Abundance (%)", y = "") +
+  guides(fill=guide_legend(ncol=4))
+
+# ggsave("Family_legend_0.5_2024.04.02.png", plot = last_plot(),
+#        units = "cm", width = 35, height = 20, dpi = 500)
+
+
+
+
 ```
 
 
