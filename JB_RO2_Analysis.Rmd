@@ -4,6 +4,13 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
+# set working directory
+```{r}
+setwd("/Users/jessicabullington/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/stinson-transplant")
+
+```
+
+
 
 # load libraries
 ```{r}
@@ -21,28 +28,21 @@ library(ggvenn)
 library(RColorBrewer)
 library(vegan)
 library(gridExtra)
-#library(factoextra) # install?
+library(stringr)
 
-# pretty_plot <- theme_classic() + theme(
-#   #text = element_text(family = "Arial", color = "black"),
-#   plot.margin = margin(0.5,0.5,0.5,0.5, "cm"),
-#   axis.line.x.bottom = element_line(color = "black", size = 0.5),
-#   axis.line.y.left = element_line(color = "black", size = 0.5),
-#   panel.border = element_rect(colour="black", fill = NA, size = 0.5),
-#   strip.background = element_blank(),
-#   strip.text = element_text(size = 12),
-#   panel.grid.major = element_blank(),
-#   panel.grid.minor = element_blank(),
-#   plot.title = element_text(size = 15),
-#   axis.title = element_text(size = 12), 
-#   axis.text.y = element_text(size = 12, color = "#000000"),
-#   axis.text.x = element_text(size = 12, color = "#000000"))
 ```
 
 # chemistry
 ```{r}
 # load chem data
 ro2_chem_all = read.csv("probe_transplant_2024.11.24.csv")
+ro2_chem_all$Treatment = ifelse(ro2_chem_all$Location == "W1D1", "Control",
+                                ifelse(ro2_chem_all$Location == "W4D1", "Salinity",
+                                       ifelse(ro2_chem_all$Location == "W1D4", "Depth", "NA")))
+ro2_chem_all$Day = ifelse(ro2_chem_all$Time == "T05", "5",
+                                ifelse(ro2_chem_all$Time == "T10", "10",
+                                       ifelse(ro2_chem_all$Time == "T30", "30", "NA")))
+                            
 
 ro2_chem = subset(ro2_chem_all, Type == "Pipes")
 
@@ -147,6 +147,253 @@ ggsave(filename = "RO2_DO_uM_pumped.png", plot = last_plot(),
 
 ```
 
+# physchem day 5 and 10 summaries
+```{r}
+ro2_chem = subset(ro2_chem_all, Type == "Pipes")
+ro2_chem_5_10 = subset(ro2_chem, Time %in% c("T05", "T10"))
+ro2_chem_30 = subset(ro2_chem, Time == "T30")
+
+library(multcompView)
+
+# salinity
+anova <- aov(Salinity..psu. ~ Treatment, data = ro2_chem_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+cld$Treatment = rownames(cld)
+
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(Salinity..psu.)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+sal = ggplot(ro2_chem_5_10, aes(x = Treatment, y = Salinity..psu., fill = Treatment)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_5_10$Salinity..psu., na.rm = T),
+                                max(ro2_chem_5_10$Salinity..psu., na.rm = T))) +
+  labs(x = "", y = "Salinity (PSU)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+sal
+
+ggsave(filename = "RO2_salinity_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# salinity violin
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(Salinity..psu.)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+sal_v = ggplot(ro2_chem_5_10, aes(x = Treatment, y = Salinity..psu., fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_5_10$Salinity..psu., na.rm = T),
+                                max(ro2_chem_5_10$Salinity..psu., na.rm = T)+1),
+                     n.breaks = 5) +
+  labs(x = "", y = "Salinity (PSU)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -0.8, fontface = "bold")
+sal_v
+
+ggsave(filename = "RO2_salinity_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# temperature
+anova <- aov(Temp...C. ~ Treatment, data = ro2_chem_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+multcompLetters4(anova, tukey)$Treatment
+cld$Treatment = rownames(cld)
+
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(Temp...C.)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "a", "b") # just visually inspect cld and add letters accordingly
+
+temp = ggplot(ro2_chem_5_10, aes(x = Treatment, y = Temp...C., fill = Treatment)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_5_10$Temp...C., na.rm = T),
+                                max(ro2_chem_5_10$Temp...C., na.rm = T)
+                                +0.1),
+                     n.breaks = 5) +
+  labs(x = "", y = "Temperature (°C)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+temp
+
+ggsave(filename = "RO2_temperature_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# temp violin
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(Temp...C.)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "a", "b") # just visually inspect cld and add letters accordingly
+
+temp_v = ggplot(ro2_chem_5_10, aes(x = Treatment, y = Temp...C., fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_5_10$Temp...C., na.rm = T),
+                                max(ro2_chem_5_10$Temp...C., na.rm = T)
+                                +0.1),
+                     n.breaks = 5) +
+  labs(x = "", y = "Temperature (°C)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -0.8, fontface = "bold")
+temp_v
+
+ggsave(filename = "RO2_temperature_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# dissolved oxygen
+anova <- aov(DO..µM. ~ Treatment, data = ro2_chem_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+multcompLetters4(anova, tukey)$Treatment
+cld$Treatment = rownames(cld)
+
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(DO..µM.)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "ab") # just visually inspect cld and add letters accordingly
+
+do = ggplot(ro2_chem_5_10, aes(x = Treatment, y = DO..µM., fill = Treatment)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+   scale_y_continuous(limits = c(min(ro2_chem_5_10$DO..µM., na.rm = T)-1,
+                                max(ro2_chem_5_10$DO..µM., na.rm = T)
+                              +7),
+                     n.breaks = 5) +
+  labs(x = "", y = "Dissolved Oxygen (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1, hjust = 0.1), 
+        legend.position = "none", 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+do
+
+ggsave(filename = "RO2_oxygen_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# oxygen violin
+placement <- ro2_chem_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(DO..µM.)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "ab") # just visually inspect cld and add letters accordingly
+
+do_v = ggplot(ro2_chem_5_10, aes(x = Treatment, y = DO..µM., fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(ro2_chem_5_10$DO..µM., na.rm = T)-1,
+                                max(ro2_chem_5_10$DO..µM., na.rm = T)
+                              +7),
+                     n.breaks = 5) +
+  labs(x = "", y = "Dissolved Oxygen (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1, hjust = 0.1),  
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank())+
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -0.8, fontface = "bold")
+do_v
+
+ggsave(filename = "RO2_oxygen_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+```
+
+# make into one figure grid
+```{r}
+# super helpful page: https://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/81-ggplot2-easy-way-to-mix-multiple-graphs-on-the-same-page/
+
+if(!require(devtools)) install.packages("devtools")
+devtools::install_github("kassambara/ggpubr")
+install.packages("ggpubr")
+library(ggpubr)
+
+ggarrange(sal, NULL, temp, nrow = 1, widths = c(1, 0.05, 1), labels = c("A", "", "B"), font.label = list(size = 20))
+
+ggsave(filename = "RO2_T_S_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 10, height = 4, dpi = 300)
+
+ggarrange(sal_v, NULL, temp_v, nrow = 1, widths = c(1, 0.05, 1), labels = c("A", "", "B"), font.label = list(size = 20))
+
+ggsave(filename = "violin_T_S_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 10, height = 4, dpi = 300)
+
+ggarrange(sal, temp, do, labels = c("A", "B", "C"),
+          common.legend = TRUE, legend = "bottom")
+
+ggarrange(sal, NULL, temp, NULL, do, nrow = 1, widths = c(1, 0.05, 1, 0.05, 1), labels = c("A", "", "B", "", "C"), font.label = list(size = 20))
+
+ggsave(filename = "boxplots_T_S_DO_Day_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 15, height = 4, dpi = 300)
+
+ggarrange(sal_v, NULL, temp_v, NULL, do_v, nrow = 1, widths = c(1, 0.05, 1, 0.05, 1), labels = c("A", "", "B", "", "C"), font.label = list(size = 20))
+
+ggsave(filename = "violin_T_S_DO_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 15, height = 4, dpi = 300)
+
+#ggarrange(sal, temp, do, labels = c("A", "B", "C"),
+#          common.legend = TRUE, legend = "bottom")
+
+# alternative with cowplot
+library(cowplot)
+
+df <- data.frame(x = rnorm(20), y = rnorm(20))
+x <- ggplot(df, aes(x = x, y = y)) + geom_smooth()
+l <- rep(list(x), 9)
+
+plot_grid(plotlist = l, nrow = 3)
+```
+
+
 
 # nutrients
 ```{r}
@@ -221,6 +468,293 @@ ggsave(filename = "RO2_phosphate_pumped.png", plot = last_plot(),
 
 ```
 
+# nutrients summary day 5 and 10
+```{r}
+nuts = read.csv("RO2_nutrients.csv")
+
+nuts$Treatment = ifelse(nuts$Location == "W1D1", "Control",
+                                ifelse(nuts$Location == "W4D1", "Salinity",
+                                       ifelse(nuts$Location == "W1D4", "Depth", "NA")))
+nuts$Day = ifelse(nuts$Time == "T05", "5",
+                                ifelse(nuts$Time == "T10", "10",
+                                       ifelse(nuts$Time == "T30", "30", "NA")))
+                            
+
+nuts_5_10 = subset(nuts, Time %in% c("T05", "T10"))
+
+# nitrate
+anova <- aov(nitrate ~ Treatment, data = nuts_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+cld$Treatment = rownames(cld)
+multcompLetters4(anova, tukey)$Treatment
+
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(nitrate)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+no3 = ggplot(nuts_5_10, aes(x = Treatment, y = nitrate, fill = Treatment)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(nuts_5_10$nitrate, na.rm = T),
+                                max(nuts_5_10$nitrate, na.rm = T)
+                                +25)) +
+  labs(x = "", y = "Nitrate (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+no3
+
+ggsave(filename = "RO2_nitrate_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# nitrate violin
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(nitrate)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+no3_v = ggplot(nuts_5_10, aes(x = Treatment, y = nitrate, fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+ scale_y_continuous(limits = c(min(nuts_5_10$nitrate, na.rm = T),
+                                max(nuts_5_10$nitrate, na.rm = T)
+                                +25)) +
+  labs(x = "", y = "Nitrate (µM)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -1, fontface = "bold")
+no3_v
+
+ggsave(filename = "RO2_nitrate_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# nitrite
+anova <- aov(nitrite ~ Treatment, data = nuts_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+cld$Treatment = rownames(cld)
+multcompLetters4(anova, tukey)$Treatment
+
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(nitrite)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+no2 = ggplot(nuts_5_10, aes(x = Treatment, y = nitrite, fill = Treatment)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(nuts_5_10$nitrite, na.rm = T),
+                                max(nuts_5_10$nitrite, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Nitrite (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+no2
+
+ggsave(filename = "RO2_nitrite_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# nitrate violin
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(nitrite)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "c") # just visually inspect cld and add letters accordingly
+
+no2_v = ggplot(nuts_5_10, aes(x = Treatment, y = nitrite, fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+ scale_y_continuous(limits = c(min(nuts_5_10$nitrite, na.rm = T),
+                                max(nuts_5_10$nitrite, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Nitrite (µM)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -1, fontface = "bold")
+no2_v
+
+ggsave(filename = "RO2_nitrite_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+
+# ammmonia
+anova <- aov(ammonia ~ Treatment, data = nuts_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+cld$Treatment = rownames(cld)
+multcompLetters4(anova, tukey)$Treatment
+
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(ammonia)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "a") # just visually inspect cld and add letters accordingly
+
+amm = ggplot(nuts_5_10, aes(x = Treatment, y = ammonia, fill = Treatment)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(nuts_5_10$ammonia, na.rm = T),
+                                max(nuts_5_10$ammonia, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Ammonia (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+amm
+
+ggsave(filename = "RO2_ammonia_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# ammonia violin
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(ammonia)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "b", "a") # just visually inspect cld and add letters accordingly
+
+amm_v = ggplot(nuts_5_10, aes(x = Treatment, y = ammonia, fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+ scale_y_continuous(limits = c(min(nuts_5_10$ammonia, na.rm = T),
+                                max(nuts_5_10$ammonia, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Ammonia (µM)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -1, fontface = "bold")
+amm_v
+
+ggsave(filename = "RO2_ammonia_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+
+# phosphate
+anova <- aov(phosphate ~ Treatment, data = nuts_5_10)
+tukey <- TukeyHSD(anova)
+cld <- as.data.frame.list(multcompLetters4(anova, tukey)$Treatment)
+cld$Treatment = rownames(cld)
+multcompLetters4(anova, tukey)$Treatment
+summary(anova)
+
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(quantile(phosphate)[4]) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "a", "a") # just visually inspect cld and add letters accordingly
+
+phos = ggplot(nuts_5_10, aes(x = Treatment, y = phosphate, fill = Treatment)) +
+  geom_boxplot() +
+  #geom_violin() +
+  #geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+  scale_y_continuous(limits = c(min(nuts_5_10$phosphate, na.rm = T),
+                                max(nuts_5_10$phosphate, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Phosphate (µM)\n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = -1.25, vjust = -0.8, fontface = "bold")
+phos
+
+ggsave(filename = "RO2_phosphate_box_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+# phosphate violin
+placement <- nuts_5_10 %>% #We want to create a dataframe to assign the letter position.
+  group_by(Treatment) %>%
+  summarise(max(phosphate)) 
+colnames(placement)[2] <- "Placement.Value"
+placement$Letter = c("a", "a", "a") # just visually inspect cld and add letters accordingly
+
+phos_v = ggplot(nuts_5_10, aes(x = Treatment, y = phosphate, fill = Treatment)) +
+  #geom_boxplot() +
+  geom_violin()+
+  geom_point()+
+  scale_fill_manual(values = c("#F15A24", "#009245", "#0071BC")) + # yellow FCEE21, grey CCCCCC
+ scale_y_continuous(limits = c(min(nuts_5_10$phosphate, na.rm = T),
+                                max(nuts_5_10$phosphate, na.rm = T)
+                                +2)) +
+  labs(x = "", y = "Phosphate (µM)\n") +
+  theme_bw() +
+   theme(axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20, vjust = -1), 
+        legend.position = "none", panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(),
+panel.background = element_blank()) +
+  geom_text(data = placement, aes(x = Treatment, y = Placement.Value, label = Letter), size = 6, color = "black", hjust = 0.5, vjust = -1, fontface = "bold")
+phos_v
+
+ggsave(filename = "RO2_phosphate_violin_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 5, height = 4, dpi = 300)
+
+```
+
+# nutrient combined figure
+```{r}
+ggarrange(no3, NULL, no2, amm, NULL, phos, nrow = 2, ncol = 3, widths = c(1, 0.05, 1, 1, 0.05, 1), labels = c("A", "", "B", "C", "", "D"), font.label = list(size = 20))
+
+ggsave(filename = "boxplots_nutrients_Day_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 10, height = 8, dpi = 300)
+
+ggarrange(no3_v, NULL, no2_v, amm_v, NULL, phos_v, nrow = 2, ncol = 3, widths = c(1, 0.05, 1, 1, 0.05, 1), labels = c("A", "", "B", "C", "", "D"), font.label = list(size = 20))
+
+ggsave(filename = "violin_nutrients_Day_5_10.png", plot = last_plot(),
+       device = "png", units = "in", width = 10, height = 8, dpi = 300)
+```
 
 
 # phyloseq object
@@ -469,6 +1003,109 @@ ggsave(filename = "reads_trim.png", plot = last_plot(),
 ```
 
 
+# comparison to porewater and sand surveys (April 27, 2025)
+
+## get phyloseq object set up
+```{r}
+dirPath <- "/Users/jessicabullington/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/stinson-transplant"
+
+# Load phyloseq object if necessary
+psSingletonFilt <- readRDS(file = paste0(dirPath, "/robjects", "/ps_SingleFilt_Stinson_all_decontam_notree.rds"))
+
+# Print sample names
+sample_names(psSingletonFilt)
+
+# Check the metadata for sample types to keep
+psSF_sampledata = data.frame(sample_data(psSingletonFilt))
+
+# Filter and subset samples
+psComp <- subset_samples(psSingletonFilt, sample.type %in% c("RO2", "porewater", "seawater", "sand")) %>%
+  prune_taxa(taxa_sums(.) > 0, .)
+
+# Change taxonomy names if unclassified
+tax <- data.frame(tax_table(psComp))
+
+tax.clean <- data.frame(row.names = row.names(tax),
+Kingdom = str_replace(tax[,1], "D_0__",""), # I don't have these markers so does nothing but still run it
+Phylum = str_replace(tax[,2], "D_1__",""),
+Class = str_replace(tax[,3], "D_2__",""),
+Order = str_replace(tax[,4], "D_3__",""),
+Family = str_replace(tax[,5], "D_4__",""),
+Genus = str_replace(tax[,6], "D_5__",""),
+stringsAsFactors = FALSE)
+tax.clean[is.na(tax.clean)] <- ""
+
+for (i in 1:6){ tax.clean[,i] <- as.character(tax.clean[,i])} 
+tax.clean[is.na(tax.clean)] <- "" 
+for (i in 1:nrow(tax.clean)){
+  if (tax.clean[i,2] == ""){
+kingdom <- paste("unclassified ", tax.clean[i,1], sep = "") 
+tax.clean[i, 2:6] <- kingdom
+} else if (tax.clean[i,3] == ""){
+phylum <- paste("unclassified ", tax.clean[i,2], sep = "")
+tax.clean[i, 3:6] <- phylum
+} else if (tax.clean[i,4] == ""){
+class <- paste("unclassified ", tax.clean[i,3], sep = "")
+tax.clean[i, 4:6] <- class
+} else if (tax.clean[i,5] == ""){
+order <- paste("unclassified ", tax.clean[i,4], sep = "")
+tax.clean[i, 5:6] <- order
+} else if (tax.clean[i,6] == ""){
+family <- paste("unclassified ", tax.clean[i,5], sep = "")
+tax.clean[i, 6:6] <- family
+ }
+  
+}
+
+tax_table(psComp) <- as.matrix(tax.clean)
+
+# Remove mitochondria and chloroplasts
+mito <- psComp %>%
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Family == "Mitochondria") %>% # needs to be capitalized
+  psmelt()
+
+unique(mito$OTU)
+n_distinct(mito$OTU) #1167 ASVs
+
+chloro <- psComp %>% # not class level but yes order level
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Order == "Chloroplast") %>%
+  psmelt()
+
+unique(chloro$OTU)
+n_distinct(chloro$OTU) #244 ASVs
+
+euks <- psComp %>% # none
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Kingdom == "Eukaryota") %>%
+  psmelt() # none
+
+unks <- psComp %>% # how many?
+  transform_sample_counts(., function(x) 100*x/sum(x)) %>%
+  subset_taxa(Kingdom == "") %>% # change to NA or whatever placeholder
+  psmelt()
+
+unique(unks$OTU)
+n_distinct(unks$OTU) # 17
+
+psComp_new <- psComp %>%
+  subset_taxa(Family != "Mitochondria") %>% # also removes NAs if not already changed (be careful to change to unclassified first)
+  subset_taxa(Order != "Chloroplast") %>%
+  subset_taxa(Kingdom != "") 
+
+ntaxa(psComp) # 65544
+ntaxa(psComp_new) # 64116 (removed 1428)
+
+# save
+saveRDS(psComp_new, file = paste0(dirPath, "/robjects", "/psComp_new.rds"))
+
+# meta
+psComp_meta = data.frame(sample_data(psComp_new))
+
+```
+
+
 # ordination
 ```{r}
 sample_data(ps_new)$Day <- as.factor(as.character(sample_data(ps_new)$Day)) # change the order!
@@ -697,6 +1334,148 @@ ggsave(filename = "ordination_all_asvs_2024.12.05.png",
 ```
 
 
+
+# reduced ordination (4 treatments)
+```{r}
+ps_new <- readRDS(file = paste0(dirPath, "/robjects", "/psRO2_new.rds"))
+
+sample_data(ps_new)$Day <- as.factor(as.character(sample_data(ps_new)$Day)) # change the order!
+sample_data(ps_new)$Day <- factor(sample_data(ps_new)$Day, levels = c("0", "5", "10", "30"))
+sample_data(ps_new)$Set <- as.factor(as.character(sample_data(ps_new)$Set))
+sample_data(ps_new)$Set <- factor(sample_data(ps_new)$Set, levels = c("NC", "NC W1", "NC D4", "NC W4", "PC W1", "PC W4", "D", "S"))
+
+# filter for PC W1, PC W4, D, S
+ps_new_red = subset_samples(ps_new, Set %in% c("PC W1", "PC W4", "D", "S"))
+
+# remove taxa without reads
+ps_new_red = prune_taxa(taxa_sums(ps_new_red) > 0, ps_new_red)
+ntaxa(ps_new_red)
+
+# change treatment names
+sample_data(ps_new_red)$Set <- as.character(sample_data(ps_new_red)$Set)
+sample_data(ps_new_red)$Set[sample_data(ps_new_red)$Set == "PC W1"] <- "Control"
+sample_data(ps_new_red)$Set[sample_data(ps_new_red)$Set == "PC W4"] <- "Well 4"
+sample_data(ps_new_red)$Set[sample_data(ps_new_red)$Set == "D"] <- "Depth"
+sample_data(ps_new_red)$Set[sample_data(ps_new_red)$Set == "S"] <- "Salinity"
+
+sample_data(ps_new)$Set <- as.factor(as.character(sample_data(ps_new)$Set))
+sample_data(ps_new)$Set <- factor(sample_data(ps_new)$Set, levels = c("Well 4", "Salinity", "Depth", "Control"))
+
+
+
+# ordination with asinh transform on raw reads and PCoA
+pstrans = transform_sample_counts(ps_new_red, function(x) asinh(x)) 
+ps_ord = ordinate(pstrans, method = "PCoA", distance = "bray")
+plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 5) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#F15A24", "#009245", "#0071BC", "#FCEE21")) + 
+  labs(col = "Treatment", shape = "Day")
+
+
+# ggsave(filename = "ordination_asinh_pcoa_2024.11.25.png",
+#        plot = last_plot(),
+#        device = "png", units = "cm", width = 15, height = 10, dpi = 300) # adjust dimensions to axes %
+
+
+# ordination with proportion transform on raw reads and NMDS
+set.seed(123)
+pstrans = transform_sample_counts(ps_new_red, function(x) asinh(x)) # looks similar to non-transformed
+ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray") # stress = 0.1428031 
+#plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  #scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F"))+ 
+  scale_color_manual(values = c("#F15A24", "#009245", "#0071BC", "#FCEE21")) + 
+  labs(col = "", shape = "Day")
+
+ggsave(filename = "ordination_legend_2025.02.28.png",
+       plot = last_plot(),
+       device = "png", units = "in", width = 7, height = 5, dpi = 300) # adjust dimensions to axes %
+
+# ordination on only abundant ASVs
+set.seed(123)
+ps_filt_abun = transform_sample_counts(ps_new_red, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+ntaxa(ps_new)
+
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new_red %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (untransformed to proportion)
+ntaxa(pstrans)
+
+ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray") # stress = 0.1428031 
+#plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(pstrans, ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse() + # flip x axis orientation to match ordihull
+  theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  theme(panel.border = element_rect(colour = "black", size = 1))+
+  geom_point(alpha = 0.7, size = 4) +
+  scale_color_manual(values = c("#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  labs(col = "Treatment", shape = "Day")
+
+# remove from plot of all data to tilt axes
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (untransformed to proportion)
+ntaxa(pstrans)
+
+ps_ord = ordinate(pstrans, method = "NMDS", distance = "bray") # stress = 0.1428031 
+#plot_ordination(pstrans, ps_ord, type = "scree")  # two primary axes
+
+# plot ordination
+plot_ordination(subset_samples(pstrans, Set %in% c("PC W1", "PC W4", "D", "S")), ps_ord, color = "Set", shape = "Day", axes = c(1,2)) +
+  #coord_fixed(sqrt(evals_bc[2] / evals_bc[1])) + # set aspect ratio to CAP eigenvalues
+  theme_bw()+
+  scale_x_reverse(limits = c(1.3, -0.7)) + # flip x axis orientation to match ordihull
+  #theme(legend.text = element_text(size = 11), axis.text = element_text(size = 11)) +
+  geom_point(alpha = 0.7, size = 4) +
+  annotate(geom="text", x=1, y=1, label="Stress = 0.175", size = 5) +
+  labs(x = "\nNMDS1", y = "NMDS2\n") +
+  scale_color_manual(values = c("#F15A24","#FCEE21", "#009245", "#0071BC")) + 
+  theme(axis.text.x = element_text(size = 14), 
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(size = 14, vjust = -1), 
+        axis.title.x = element_text(size = 14, vjust = 1), 
+        legend.position = "none", 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", size = 1))
+
+
+
+ggsave(filename = "ordination_reduced_2025.02.28.png",
+       plot = last_plot(),
+       device = "png", units = "in", width = 6, height = 5, dpi = 300) # adjust dimensions
+
+
+
+
+```
+
+
+
+
 # make wide tables
 ```{r}
 otu = t(data.frame(otu_table(ps_new)))
@@ -788,6 +1567,8 @@ nestedness
 turnover = betadisper(ps_new, sample_data(ps_new)$Set, type = "bray")
 turnover
 
+betapart?
+
 # plot
 plot(nestedness)
 plot(turnover)
@@ -860,7 +1641,7 @@ ggplot(pcw1_filt_untrans_melt, aes(x = Sample, y = reorder(OTU, )) + # change OT
                         name = "Relative \nAbundance (%)") + # needs to scale to 0-1
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
-  labs(x = "", y = "") 
+  labs(x = "", y = "")) 
 
 
 ggsave("Indicator_red_ASVs_2024.06.21.png", plot = last_plot(),
@@ -915,7 +1696,53 @@ persist_alldays = nrow(data.frame(intersect(taxa_day0, taxa_day5, taxa_day10, ta
 persist_alldays = intersect(intersect(taxa_day0, taxa_day5), intersect(taxa_day10, taxa_day30))
 # 148/355 so 41.69014 % persist over all days
 
+# plot bar over days
+pers = data.frame(Day = c("Day 0", "Day 5", "Day 10", "Day 30"), 
+                  Percent = c(100, (persist_day0_day5*100), (persist_day0_day10*100), (persist_day0_day30*100)),
+                  Group = "Persistent")
 
+recrut = data.frame(Day = c("Day 0", "Day 5", "Day 10", "Day 30"), 
+                  Percent = c(100-100, 100-(persist_day0_day5*100), 100-(persist_day0_day10*100), 100-(persist_day0_day30*100)),
+                  Group = "Recruited")
+
+pr = rbind(pers, recrut)
+pr$Day = as.factor(pr$Day)
+pr$Day = factor(pr$Day, levels = c("Day 0", "Day 5", "Day 10", "Day 30"))
+pr$Group = as.factor(pr$Group)
+pr$Group = factor(pr$Group, levels = c("Recruited", "Persistent"))
+
+
+ggplot(pr, aes(x = Day, y = Percent, fill = Group)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = c("#F15A24", "grey")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(y = "Percent ASV Overlap with Day 0\n", x = "", fill = "")
+
+ggsave("Control_Persistent_Barplot_2025.03.04.png", width = 5, height = 4, units = "in", dpi = 300)
+
+# actually not as a percentage but as number of taxa
+num_persist_day0_day5 = nrow(data.frame(intersect(taxa_day0, taxa_day5)))
+num_persist_day0_day10 = nrow(data.frame(intersect(taxa_day0, taxa_day10)))
+num_persist_day0_day30 = nrow(data.frame(intersect(taxa_day0, taxa_day30)))
+
+num_recruit_day0_day5 = ntaxa(pcw1_filt_untrans_day5) - num_persist_day0_day5
+num_recruit_day0_day10 = ntaxa(pcw1_filt_untrans_day10) - num_persist_day0_day10
+num_recruit_day0_day30 = ntaxa(pcw1_filt_untrans_day30) - num_persist_day0_day30
+
+pers = data.frame(Day = c("Day 0", "Day 5", "Day 10", "Day 30"), 
+                  ntaxa = c(ntaxa(pcw1_filt_untrans), num_persist_day0_day5, num_persist_day0_day10, num_persist_day0_day30),
+                  Group = "Persistent")
+
+recrut = data.frame(Day = c("Day 0", "Day 5", "Day 10", "Day 30"), 
+                  ntaxa = c(100-100, 100-(persist_day0_day5*100), 100-(persist_day0_day10*100), 100-(persist_day0_day30*100)),
+                  Group = "Recruited")
+
+pr = rbind(pers, recrut)
+pr$Day = as.factor(pr$Day)
+pr$Day = factor(pr$Day, levels = c("Day 0", "Day 5", "Day 10", "Day 30"))
+pr$Group = as.factor(pr$Group)
+pr$Group = factor(pr$Group, levels = c("Recruited", "Persistent"))
 
 
 ```
@@ -925,8 +1752,8 @@ persist_alldays = intersect(intersect(taxa_day0, taxa_day5), intersect(taxa_day1
 ```{r}
 
 # venn diagram with intersect values
-ggplot(otu_pa, aes(A = `D-W1D1-5-R1`, B = `D-W1D1-5-R2`, C = `D-W1D1-5-R3`)) +
-  geom_venn() + theme_void() + coord_fixed()
+# ggplot(otu_pa, aes(A = `D-W1D1-5-R1`, B = `D-W1D1-5-R2`, C = `D-W1D1-5-R3`)) +
+#   geom_venn() + theme_void() + coord_fixed()
 
 set.seed(20190708)
 genes <- paste("gene",1:1000,sep="")
@@ -937,15 +1764,15 @@ x <- list(
   D = taxa_day30
   )
 
-x <- list(
-  A = sample(genes,300), 
-  B = sample(genes,525), 
-  C = sample(genes,440),
-  D = sample(genes,350)
-  )
+# x <- list(
+#   A = sample(genes,300), 
+#   B = sample(genes,525), 
+#   C = sample(genes,440),
+#   D = sample(genes,350)
+#   )
 
-if (!require(devtools)) install.packages("devtools")
-devtools::install_github("gaospecial/ggVennDiagram")
+# if (!require(devtools)) install.packages("devtools")
+# devtools::install_github("gaospecial/ggVennDiagram")
 
 library("ggVennDiagram")
 
@@ -954,6 +1781,7 @@ ggVennDiagram(
   category.names = c("Day 0","Day 5","Day 10", "Day 30")
   ) + 
   ggplot2::scale_fill_gradient(low="blue",high = "yellow")
+ggsave("Control_Persistent_VENN_2025.03.04.png", width = 6, height = 5, units = "in", dpi = 300)
 
 
 if (!require(devtools)) install.packages("devtools")
@@ -967,9 +1795,295 @@ ggvenn(
   stroke_size = 0.5, set_name_size = 4
   )
 
-ggvenn(x)
+
 
 ```
+
+
+# Anosim between PC, S, D
+```{r}
+# start with ps_new
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+ntaxa(ps_new)
+ntaxa(ps_filt_abun) #821
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+pstrans = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (untransformed to proportion)
+ntaxa(pstrans)
+
+# trim to only PCW1, S, D for day 5 and 10
+pstrans_5_10 = subset_samples(pstrans, Set %in% c("PC W1", "S", "D") & Day %in% c("5", "10"))
+
+# check the trim worked
+sample_data = data.frame(sample_data(ps_new))
+sample_data_5_10 = data.frame(sample_data(pstrans_5_10))
+
+# remove taxa without reads
+pstrans_5_10 = prune_taxa(taxa_sums(pstrans_5_10) > 0, pstrans_5_10) # remove ASVs with 0 reads
+ntaxa(pstrans_5_10) # 719
+
+# generate distance matrix
+dist_5_10 = phyloseq::distance(pstrans_5_10, method = "bray") # default type = "samples"
+
+# test dispersion (want non sig)
+disp_5_10 = betadisper(dist_5_10, sample_data(pstrans_5_10)$Set) 
+print(disp_5_10, digits = max(3, getOption("digits") - 3), neigen = 8)
+anova(disp_5_10) # p = 0.8958, looks good!
+
+# test anosim
+anosim_5_10 = anosim(dist_5_10, sample_data(pstrans_5_10)$Set, permutations = 999)
+print(anosim_5_10) # p = 0.001
+
+# adonis
+adonis_5_10 = adonis2(dist_5_10 ~ Set, data = data.frame(sample_data(pstrans_5_10)), permutations = 999)
+print(adonis_5_10) # Treatment, p = 0.001
+
+adonis_5_10 = adonis2(dist_5_10 ~ Set, data = data.frame(sample_data(pstrans_5_10)), permutations = 999)
+print(adonis_5_10) # Day, p = 0.627
+
+
+# note: probably want to test the difference between each time point within each treatment first
+
+```
+
+# DESeq between PC, S, D
+```{r}
+# start with ps_new
+ps_filt_abun = transform_sample_counts(ps_new, function(x) 100*x/sum(x)) %>%
+  filter_taxa(., function(x) max(x) > 0.1, TRUE) 
+ntaxa(ps_new)
+ntaxa(ps_filt_abun) #821
+
+# prune taxa from ps_new for OTUs in ps_filt_abun
+ps_filt = ps_new %>% prune_taxa(row.names(tax_table(ps_filt_abun)),.) #works! (untransformed to proportion)
+ntaxa(ps_filt)
+
+# trim to only PCW1, S, D for day 5 and 10
+ps_filt_5_10 = subset_samples(ps_filt, Set %in% c("PC W1", "S", "D") & Day %in% c("5", "10"))
+ntaxa(ps_filt_5_10)
+ps_filt_5_10 = prune_taxa(taxa_sums(ps_filt_5_10) > 0, ps_filt_5_10) # remove ASVs with 0 reads
+ntaxa(pstrans_5_10) # 719
+
+
+library(DESeq2)
+diagdds <- phyloseq_to_deseq2(ps_filt_5_10, ~ Set)
+diagdds <- DESeq(diagdds, test = "Wald", fitType = "parametric", sfType = "poscounts")
+
+# Salinity
+incubation = "Set"
+treat = "S"
+control = "PC W1"
+
+# Inspect results with significance threshold
+res <- results(diagdds, cooksCutoff = FALSE, contrast = c(incubation, treat, control))
+alpha <- 0.05
+sigtab <- res[which(res$padj < alpha), ]
+#sigtab <- sigtab[which(res$log2FoldChange > 0), ] # only want enriched
+sigtab <- cbind(as(sigtab, "data.frame"), as(tax_table(ps_filt_5_10)[rownames(sigtab), ], "matrix"))
+write.csv(sigtab, "DESeq_PCW1_S_0.1_ASVs_2025.02.26_2.csv")
+
+# sort genera by mean value of log2FoldChange
+sigtab$Genus = factor(sigtab$Genus, levels = names(sort(tapply(sigtab$log2FoldChange, sigtab$Genus, mean), decreasing = F)))
+
+# make a plot of the log2FC by genus
+ggplot(sigtab, aes(x = log2FoldChange, y = Genus)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Genus")
+
+ggsave("DESeq_PCW1_S_0.1_Genera_2025.02.26.png", plot = last_plot(),
+       units = "cm", width = 20, height = 20, dpi = 300)
+
+# sort family by mean value of log2FoldChange
+sigtab$Family = factor(sigtab$Family, levels = names(sort(tapply(sigtab$log2FoldChange, sigtab$Family, mean), decreasing = F)))
+
+# make a plot of the log2FC by family
+ggplot(sigtab, aes(x = log2FoldChange, y = Family)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Family")
+
+ggsave("DESeq_PCW1_S_0.1_Family_2025.02.26.png", plot = last_plot(),
+       units = "cm", width = 15, height = 20, dpi = 300)
+
+# add a point for the mean values
+sigtab_mean = sigtab %>% group_by(Genus) %>% summarise(mean_log2FoldChange = mean(log2FoldChange))
+
+ggplot(sigtab, aes(x = log2FoldChange, y = Genus)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  geom_point(data = sigtab_mean, aes(x = mean_log2FoldChange, y = Genus), color = "red", alpha = 0.5) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Genus")
+
+
+# Depth
+incubation = "Set"
+treat = "D"
+control = "PC W1"
+
+# Inspect results with significance threshold
+res <- results(diagdds, cooksCutoff = FALSE, contrast = c(incubation, treat, control))
+alpha <- 0.05
+sigtab <- res[which(res$padj < alpha), ]
+#sigtab <- sigtab[which(res$log2FoldChange > 0), ] # only want enriched
+sigtab <- cbind(as(sigtab, "data.frame"), as(tax_table(ps_filt_5_10)[rownames(sigtab), ], "matrix"))
+write.csv(sigtab, "DESeq_PCW1_D_0.1_ASVs_2025.02.26_2.csv")
+
+# sort genera by mean value of log2FoldChange
+sigtab$Genus = factor(sigtab$Genus, levels = names(sort(tapply(sigtab$log2FoldChange, sigtab$Genus, mean), decreasing = F)))
+
+# make a plot of the log2FC by genus
+ggplot(sigtab, aes(x = log2FoldChange, y = Genus)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Genus")
+
+ggsave("DESeq_PCW1_D_0.1_Genera_2025.02.26.png", plot = last_plot(),
+       units = "cm", width = 15, height = 20, dpi = 300)
+
+# sort family by mean value of log2FoldChange
+sigtab$Family = factor(sigtab$Family, levels = names(sort(tapply(sigtab$log2FoldChange, sigtab$Family, mean), decreasing = F)))
+
+# make a plot of the log2FC by family
+ggplot(sigtab, aes(x = log2FoldChange, y = Family)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Family")
+
+ggsave("DESeq_PCW1_D_0.1_Family_2025.02.26.png", plot = last_plot(),
+       units = "cm", width = 15, height = 20, dpi = 300)
+
+# add a point for the mean values
+sigtab_mean = sigtab %>% group_by(Genus) %>% summarise(mean_log2FoldChange = mean(log2FoldChange))
+
+ggplot(sigtab, aes(x = log2FoldChange, y = Genus)) +
+  geom_vline(xintercept = 0, linetype = "solid") +
+  geom_point() +
+  geom_point(data = sigtab_mean, aes(x = mean_log2FoldChange, y = Genus), color = "red", alpha = 0.5) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  labs(x = "log2FoldChange", y = "Genus")
+
+
+## note: test with all ASVs not just over 1%
+```
+
+
+
+
+
+# venn diagram between PC, S, D
+```{r}
+# subset each treatment
+pstrans_5_10_PCW1 = subset_samples(pstrans_5_10, Set == "PC W1")
+pstrans_5_10_S = subset_samples(pstrans_5_10, Set == "S")
+pstrans_5_10_D = subset_samples(pstrans_5_10, Set == "D")
+
+# remove taxa without reads
+pstrans_5_10_PCW1 = prune_taxa(taxa_sums(pstrans_5_10_PCW1) > 0, pstrans_5_10_PCW1)
+pstrans_5_10_S = prune_taxa(taxa_sums(pstrans_5_10_S) > 0, pstrans_5_10_S)
+pstrans_5_10_D = prune_taxa(taxa_sums(pstrans_5_10_D) > 0, pstrans_5_10_D)
+
+# count number of taxa
+ntaxa(pstrans_5_10_PCW1) # 544
+ntaxa(pstrans_5_10_S) # 502
+ntaxa(pstrans_5_10_D) # 580
+
+# get list of taxa
+taxa_PCW1 = rownames(tax_table(pstrans_5_10_PCW1))
+taxa_S = rownames(tax_table(pstrans_5_10_S))
+taxa_D = rownames(tax_table(pstrans_5_10_D))
+
+
+set.seed(123)
+#genes <- paste("gene",1:1000,sep="")
+x <- list(
+  A = taxa_PCW1, 
+  B = taxa_S, 
+  C = taxa_D
+  )
+
+
+# if (!require(devtools)) install.packages("devtools")
+# devtools::install_github("gaospecial/ggVennDiagram")
+
+library("ggVennDiagram")
+
+ggVennDiagram(
+  x, label_alpha = 0,
+  category.names = c("Control", "Salinity", "Depth")
+  ) + 
+  ggplot2::scale_fill_gradient(low="blue",high = "yellow")
+  #ggplot2::scale_fill_discrete(values = c("#F15A24","#0071BC", "#009245"))
+
+
+if (!require(devtools)) install.packages("devtools")
+devtools::install_github("yanlinlin82/ggvenn")
+library("ggvenn")
+
+names(x) <- c("Control", "Salinity", "Depth")
+ggvenn(
+  x, 
+  #fill_color = c("#0073C2FF", "#EFC000FF", "#CD534CFF"),
+  fill_color = c("#F15A24","#0071BC", "#009245"),
+  stroke_size = 0.5, set_name_size = 7
+  
+  ) 
+ggsave("Venn_C_S_D_2025.02.28.png", plot = last_plot(),
+       units = "in", width = 8, height = 8, dpi = 300)
+
+
+install.packages("VennDiagram")
+library(VennDiagram)
+venn.diagram(x, filename = "venn-4-dimensions.png")
+
+display_venn <- function(x, ...){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(x, filename = NULL, ...)
+  grid.draw(venn_object)
+}
+
+display_venn(
+  x,
+  category.names = c("Control", "Salinity", "Depth"),
+  fill = c("#F15A24","#0071BC", "#009245"),
+  cex = .9
+  )
+
+display_venn(
+        x,
+        category.names = c("Set 1" , "Set 2 " , "Set 3", "Set 4"),
+        # Circles
+        lwd = 2,
+        lty = 'blank',
+        fill = c("#999999", "#E69F00", "#56B4E9", "#009E73"),
+        # Numbers
+        cex = .9,
+        fontface = "italic",
+        # Set names
+        cat.cex = 1,
+        cat.fontface = "bold",
+        cat.default.pos = "outer",
+        cat.dist = c(0.055, 0.055, 0.1, 0.1)
+)
+
+```
+
+
+
+
 
 
 # DESeq with relative abundance data
